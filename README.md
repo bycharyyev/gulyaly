@@ -5,24 +5,27 @@
 ## ✨ Особенности
 
 - 🎨 **Современный дизайн** — Минималистичный интерфейс вдохновлённый Apple
-- ⚡ **Молниеносная скорость** — Next.js 14+ с App Router и SSR
+- ⚡ **Молниеносная скорость** — Next.js 16+ с Turbopack
 - 🌙 **Dark Mode** — Полная поддержка тёмной темы
 - 📱 **Mobile-First** — Адаптивный дизайн для всех устройств
 - 🛍️ **Прямая покупка** — Без корзины, оплата в 1 клик
-- 🎯 **Варианты продукта** — Гибкая система вариантов (1 роза, 10 роз, 50 роз)
-- 👨‍💼 **Админ-панель** — Полное управление продуктами, заказами и пользователями
+- 🎯 **Варианты продукта** — Гибкая система вариантов
+- 👨‍💼 **Админ-панель** — Полное управление продуктами, заказами и поддержкой
 - 🔒 **Type-Safe** — TypeScript для надёжности кода
-- 🗄️ **PostgreSQL** — Надёжная база данных с Prisma ORM
+- 🗄️ **База данных** — SQLite/PostgreSQL с Prisma ORM
+- 🚀 **CI/CD** — Автоматический деплой на VPS
+- 📱 **SMS OTP** — Авторизация через SMS
+- 💬 **Live Support** — Система поддержки с чатом
 
 ## 🚀 Быстрый старт
 
 ### Требования
 
-- Node.js 18+
-- PostgreSQL 14+
+- Node.js 20+
 - npm или yarn
+- SQLite (встроен) или PostgreSQL (опционально)
 
-### Установка
+### Локальная разработка
 
 1. **Клонируйте репозиторий**
 ```bash
@@ -63,57 +66,34 @@ npm run dev
 
 Откройте [http://localhost:3000](http://localhost:3000) – сайт работает! 🎉
 
-## 💾 Полная настройка (с PostgreSQL)
+## 🌐 Деплой на VPS
 
-1. **Установите PostgreSQL**
-   - Скачайте: https://www.postgresql.org/download/
-   - Создайте базу данных `gulyaly_shop`
+### Автоматический деплой с CI/CD
 
-2. **Клонируйте репозиторий**
+1. **Настройте VPS:**
 ```bash
-git clone https://github.com/yourusername/gulyaly-shop.git
-cd gulyaly-shop
+git clone https://github.com/bycharyyev/gulyaly.git /var/www/akgus
+cd /var/www/akgus
+bash scripts/vps-setup.sh
 ```
 
-3. **Установите зависимости**
+2. **Добавьте GitHub Secrets:**
+   - `VPS_HOST` - IP адрес VPS
+   - `VPS_USER` - SSH пользователь
+   - `VPS_PORT` - SSH порт (22)
+   - `VPS_SSH_KEY` - SSH приватный ключ
+   - `DATABASE_URL` - URL базы данных
+   - `NEXTAUTH_URL` - URL сайта
+   - `NEXTAUTH_SECRET` - Секретный ключ
+
+3. **Готово!** Каждый push в `main` автоматически деплоит на VPS 🚀
+
+### Ручной деплой
 ```bash
-npm install
+ssh user@vps-ip
+cd /var/www/akgus
+bash scripts/deploy.sh
 ```
-
-4. **Настройте переменные окружения**
-
-Отредактируйте `.env`:
-
-```env
-# Database
-DATABASE_URL="postgresql://user:password@localhost:5432/gulyaly_shop?schema=public"
-
-# NextAuth
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="ваш-секретный-ключ"
-
-# App URL
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
-
-# Stripe (опционально)
-STRIPE_PUBLIC_KEY="pk_test_your_key"
-STRIPE_SECRET_KEY="sk_test_your_key"
-STRIPE_WEBHOOK_SECRET="whsec_your_webhook_secret"
-```
-
-5. **Настройте базу данных**
-```bash
-npm run db:generate  # Генерация Prisma Client
-npm run db:push      # Применить схему БД
-npm run db:seed      # Заполнить тестовыми данными
-```
-
-6. **Запустите проект**
-```bash
-npm run dev
-```
-
-Откройте [http://localhost:3000](http://localhost:3000) 🎉
 
 ## 📦 Тестовые аккаунты
 
@@ -148,11 +128,14 @@ npm run dev
 
 ## 🎨 Технологии
 
-- **Frontend:** Next.js 14+, React 19, TypeScript
+- **Frontend:** Next.js 16.1.1, React 19, TypeScript
 - **Styling:** Tailwind CSS 4
-- **Database:** PostgreSQL + Prisma ORM
-- **Auth:** NextAuth.js (планируется)
-- **Payments:** Stripe (планируется)
+- **Database:** SQLite / PostgreSQL + Prisma ORM
+- **Auth:** NextAuth.js v5 + SMS OTP
+- **Payments:** Stripe Checkout
+- **File Storage:** Локальное хранилище
+- **Deployment:** VPS + PM2 + Nginx
+- **CI/CD:** GitHub Actions
 
 ## 📝 Scripts
 
@@ -166,22 +149,34 @@ npm run db:push      # Применить схему БД
 npm run db:seed      # Заполнить тестовыми данными
 ```
 
+## 🛠️ VPS команды
+
+```bash
+pm2 status           # Статус приложения
+pm2 logs akgus       # Логи
+pm2 restart akgus   # Перезапуск
+pm2 monit            # Мониторинг
+```
+
 ## 🔜 Roadmap
 
-- [x] ✅ Next.js 14+ setup
+- [x] ✅ Next.js 16+ с Turbopack
 - [x] ✅ Современный Apple-style дизайн
-- [x] ✅ PostgreSQL + Prisma ORM
-- [x] ✅ NextAuth.js авторизация
-- [x] ✅ API routes (Products, Orders)
+- [x] ✅ SQLite/PostgreSQL + Prisma ORM
+- [x] ✅ NextAuth.js v5 авторизация
+- [x] ✅ SMS OTP авторизация
+- [x] ✅ API routes (Products, Orders, Support)
 - [x] ✅ Admin panel
 - [x] ✅ Product variants system
 - [x] ✅ Stripe Checkout integration
 - [x] ✅ Stripe Webhooks
 - [x] ✅ Rate limiting
-- [ ] Загрузка изображений (через Cloudinary/S3)
-- [ ] Email уведомления (через Resend/SendGrid)
-- [ ] Unit тесты (Jest + Testing Library)
-- [ ] Docker контейнеризация
+- [x] ✅ Локальное хранилище файлов
+- [x] ✅ CI/CD с GitHub Actions
+- [x] ✅ VPS deployment scripts
+- [x] ✅ Support chat система
+- [ ] Email уведомления
+- [ ] Unit тесты
 
 ## 📄 Лицензия
 
