@@ -1,5 +1,6 @@
 // SMS Gateway Integration (sms.ibnux.net)
 import { prisma } from './prisma';
+import * as crypto from 'crypto';
 
 interface SMSConfig {
   deviceID: string;
@@ -53,7 +54,6 @@ export async function getSMSConfig(): Promise<SMSConfig> {
 
 // Generate MD5 hash
 function md5(str: string): string {
-  const crypto = require('crypto');
   return crypto.createHash('md5').update(str).digest('hex');
 }
 
@@ -75,7 +75,7 @@ export async function sendSMS(
     // Get current timestamp
     const time = Math.floor(Date.now() / 1000);
     
-    // Generate secret hash
+    // Generate secret hash (MD5(secret + time) as per IBNUX API)
     const secretHash = md5(smsConfig.secret + time);
     
     // Build request URL/params
@@ -88,17 +88,17 @@ export async function sendSMS(
       sim: smsConfig.simNumber.toString()
     });
 
-    // Send SMS via GET request
+    // Send SMS via GET request (as per IBNUX API specification)
     const response = await fetch(`${smsConfig.gatewayURL}?${params.toString()}`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
+        'Accept': 'text/plain, */*'
       }
     });
 
     const responseText = await response.text();
 
-    // Log SMS to Firestore
+    // Log SMS to database
     await logSMS({
       to,
       text,
@@ -158,7 +158,7 @@ export async function sendUSSD(
   }
 
   // For USSD, message is required but ignored
-  return await sendSMS(ussdCode, 'USSD Query', config);
+  return await sendSMS(ussdCode, 'USSD Command', config);
 }
 
 // Log SMS to Prisma database

@@ -3,13 +3,17 @@ import Footer from '@/components/Footer';
 import Image from 'next/image';
 import ProductCard from '@/components/ProductCard';
 import { Product, ProductVariant } from '@/types';
-import { getProducts } from '@/lib/firestore';
+import { prisma } from '@/lib/prisma';
 
 type ProductWithVariants = Product & { variants: ProductVariant[] };
 
 export default async function Home() {
-  // Получаем продукты из Firestore
-  const products = await getProducts(true) as ProductWithVariants[];
+  // Get products from PostgreSQL database
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    include: { variants: true },
+    orderBy: { createdAt: 'desc' },
+  }) as ProductWithVariants[];
 
   // Получаем настройки футера из API
   const footerRes = await fetch(`${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/api/footer`, {

@@ -37,6 +37,12 @@ export default function AdminHeader() {
               📊 Главная
             </Link>
             <Link
+              href="/admin/status"
+              className="text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
+              📈 Статус
+            </Link>
+            <Link
               href="/admin/users"
               className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
             >
@@ -99,6 +105,13 @@ export default function AdminHeader() {
               className="block px-4 py-3 text-base font-medium text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg transition-colors"
             >
               📊 Главная
+            </Link>
+            <Link
+              href="/admin/status"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-4 py-3 text-base font-medium text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+            >
+              📈 Статус
             </Link>
             <Link
               href="/admin/users"

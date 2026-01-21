@@ -13,18 +13,18 @@ export async function GET() {
 
     let settings = await prisma.sMSSettings.findFirst();
     
-    // Return default settings if none exist
+    // Return default settings structure if none exist
     if (!settings) {
-      settings = {
-        id: '',
+      return NextResponse.json({
+        id: null,
         deviceID: '',
         secret: '',
         gatewayURL: 'https://sms.ibnux.net/',
         simNumber: 0,
         enabled: false,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
+        createdAt: null,
+        updatedAt: null
+      });
     }
 
     return NextResponse.json(settings);

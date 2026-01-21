@@ -14,8 +14,8 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Configuration
-APP_DIR="/var/www/akgus"
-APP_NAME="akgus"
+APP_DIR="/var/www/gulyaly"
+APP_NAME="gulyaly"
 NODE_VERSION="20"
 
 # Check if running as root or sudo

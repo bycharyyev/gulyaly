@@ -14,6 +14,14 @@ export async function POST(request: Request) {
 
     const userId = (session.user as any).id;
 
+    // Check if Stripe is configured
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Оплата временно недоступна. Stripe не настроен.' },
+        { status: 503 }
+      );
+    }
+
     // Rate limiting - максимум 5 checkout сессий в минуту
     if (!checkRateLimit(`checkout:${userId}`, 5, 60000)) {
       logSecurityEvent('rate_limit', { action: 'checkout', userId });

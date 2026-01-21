@@ -30,7 +30,7 @@
 1. **Клонируйте репозиторий**
 ```bash
 git clone <repo-url>
-cd codeakgus
+cd gulyaly
 ```
 
 2. **Установите зависимости**
@@ -72,8 +72,8 @@ npm run dev
 
 1. **Настройте VPS:**
 ```bash
-git clone https://github.com/bycharyyev/gulyaly.git /var/www/akgus
-cd /var/www/akgus
+git clone https://github.com/bycharyyev/gulyaly.git /var/www/gulyaly
+cd /var/www/gulyaly
 bash scripts/vps-setup.sh
 ```
 
@@ -91,7 +91,7 @@ bash scripts/vps-setup.sh
 ### Ручной деплой
 ```bash
 ssh user@vps-ip
-cd /var/www/akgus
+cd /var/www/gulyaly
 bash scripts/deploy.sh
 ```
 
@@ -153,8 +153,8 @@ npm run db:seed      # Заполнить тестовыми данными
 
 ```bash
 pm2 status           # Статус приложения
-pm2 logs akgus       # Логи
-pm2 restart akgus   # Перезапуск
+pm2 logs gulyaly       # Логи
+pm2 restart gulyaly   # Перезапуск
 pm2 monit            # Мониторинг
 ```
 

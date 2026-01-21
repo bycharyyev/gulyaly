@@ -30,6 +30,7 @@ export default function ProfilePage() {
   const { data: session, status, update } = useSession();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -40,6 +41,7 @@ export default function ProfilePage() {
     if (session?.user) {
       setName(session.user.name || '');
       setEmail(session.user.email || '');
+      setPhone(session.user.phone || '');
     }
   }, [session]);
 
@@ -88,7 +90,7 @@ export default function ProfilePage() {
       const response = await fetch('/api/user/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email }),
+        body: JSON.stringify({ name, email, phone }),
       });
 
       const data = await response.json();
@@ -101,6 +103,7 @@ export default function ProfilePage() {
             ...session?.user,
             name: data.name,
             email: data.email,
+            phone: data.phone,
           },
         });
         alert('Профиль успешно обновлён!');
@@ -177,6 +180,21 @@ export default function ProfilePage() {
               )}
               
               <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 sm:p-6 space-y-4 sm:space-y-6">
+                {/* Информация о методе аутентификации */}
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-blue-600 dark:text-blue-400 font-medium">🔒 Метод входа:</span>
+                  </div>
+                  <div className="text-sm text-blue-800 dark:text-blue-200">
+                    {email ? (
+                      <span>📧 Email: <strong>{email}</strong></span>
+                    ) : phone ? (
+                      <span>📱 Телефон: <strong>{phone}</strong></span>
+                    ) : (
+                      <span>Не указан метод аутентификации</span>
+                    )}
+                  </div>
+                </div>
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                     Имя
@@ -198,6 +216,18 @@ export default function ProfilePage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="your@email.com"
+                    className="block w-full rounded-lg border border-zinc-300 px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base dark:border-zinc-700 dark:bg-zinc-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                    Телефон
+                  </label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+7 (999) 123-45-67"
                     className="block w-full rounded-lg border border-zinc-300 px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base dark:border-zinc-700 dark:bg-zinc-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>

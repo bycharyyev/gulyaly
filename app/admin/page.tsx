@@ -196,12 +196,19 @@ function AdminProductsPageContent() {
           >
             {showAddForm ? '✕ Отмена' : 'Добавить'}
           </button>
-                          
+                    
           <a
-            href="/admin/support"
+            href="/admin/users"
+            className="apple-button rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold text-white shadow-lg hover:shadow-xl flex-1 sm:flex-none text-center"
+          >
+            Пользователи
+          </a>
+                    
+          <a
+            href="/admin/status"
             className="apple-button rounded-full bg-gradient-to-r from-green-500 to-teal-500 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold text-white shadow-lg hover:shadow-xl flex-1 sm:flex-none text-center"
           >
-            Поддержка
+            Статус
           </a>
         </div>
       </div>
