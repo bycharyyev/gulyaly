@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
+import { sendOrderNotification } from '@/lib/notifications';
 import Stripe from 'stripe';
 
 export async function POST(request: Request) {
@@ -40,18 +41,19 @@ export async function POST(request: Request) {
 
     try {
       // Создаем заказ в базе данных
-      await prisma.order.create({
-        data: {
-          userId,
-          productId,
-          variantId,
-          amount: session.amount_total || 0,
-          status: 'PAID',
-          stripeSessionId: session.id,
-        },
-      });
+      const result = await prisma.$queryRawUnsafe(`
+        INSERT INTO orders (id, userId, productId, variantId, amount, status, stripeSessionId, createdAt, updatedAt)
+        VALUES (cuid(), ?, ?, ?, ?, 'PAID', ?, datetime('now'), datetime('now'))
+        RETURNING id
+      `, userId, productId, variantId, session.amount_total || 0, session.id) as any[];
 
-      console.log(`Order created for user ${userId}`);
+      const orderId = result[0]?.id;
+      console.log(`Order created: ${orderId} for user ${userId}`);
+
+      // Отправляем уведомления о новом заказе
+      if (orderId) {
+        await sendOrderNotification(orderId, userId, productId, session.amount_total || 0);
+      }
     } catch (error) {
       console.error('Error creating order:', error);
       return NextResponse.json({ error: 'Database error' }, { status: 500 });

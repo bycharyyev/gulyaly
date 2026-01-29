@@ -5,8 +5,10 @@ import Image from 'next/image';
 
 export default function LoadingScreen() {
   const [isLoading, setIsLoading] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     // Simulate loading time
     const timer = setTimeout(() => {
       setIsLoading(false);
@@ -15,7 +17,7 @@ export default function LoadingScreen() {
     return () => clearTimeout(timer);
   }, []);
 
-  if (!isLoading) return null;
+  if (!isMounted || !isLoading) return null;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-800">

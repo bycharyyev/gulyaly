@@ -111,11 +111,11 @@ function AdminStatusPageContent() {
             </div>
             <div>
               <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Диск:</span>
-              <p className="text-zinc-900 dark:text-white">{stats?.server.disk.used} / {stats?.server.disk.total} ({stats?.server.disk.percent})</p>
+              <p className="text-zinc-900 dark:text-white">{stats?.server.disk.used} / {stats?.server.disk.total} ({stats?.server.disk.percent}%)</p>
               <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                 <div 
                   className="bg-green-600 h-2 rounded-full" 
-                  style={{ width: stats?.server.disk.percent.replace('%', '') }}
+                  style={{ width: `${stats?.server.disk.percent}%` }}
                 ></div>
               </div>
             </div>
@@ -165,12 +165,12 @@ function AdminStatusPageContent() {
             </div>
             {stats?.server.processesList && stats.server.processesList.length > 0 && (
               <div className="mt-4">
-                <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Список процессов:</span>
+                <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Список процессов:</span>
                 <div className="mt-2 max-h-40 overflow-y-auto">
                   {stats.server.processesList.map((proc: any, index: number) => (
                     <div key={index} className="text-xs bg-zinc-100 dark:bg-zinc-800 p-2 rounded mb-1">
-                      <div className="font-mono truncate">{proc.command.substring(0, 50)}</div>
-                      <div className="flex justify-between">
+                      <div className="font-mono truncate text-zinc-900 dark:text-zinc-100">{proc.command.substring(0, 50)}</div>
+                      <div className="flex justify-between text-zinc-700 dark:text-zinc-300">
                         <span>PID: {proc.pid}</span>
                         <span>CPU: {proc.cpu}%</span>
                         <span>MEM: {proc.mem}%</span>
@@ -184,25 +184,31 @@ function AdminStatusPageContent() {
         </div>
       </div>
 
-      {/* График онлайна (простой) */}
+      {/* График онлайна (реальные данные) */}
       <div className="mt-8 rounded-3xl border-2 border-blue-200/50 bg-gradient-to-br from-white to-purple-50/30 p-6 shadow-lg backdrop-blur-xl dark:border-blue-900/50 dark:from-zinc-900 dark:to-purple-950/20">
         <h2 className="text-xl font-bold text-blue-600 dark:text-blue-400 mb-4">Статистика онлайна (последние 24 часа)</h2>
         <div className="h-48 flex items-end space-x-1">
-          {[...Array(24)].map((_, i) => {
-            // Генерируем случайные данные для демонстрации
-            const value = Math.floor(Math.random() * 100);
-            return (
-              <div key={i} className="flex-1 flex flex-col items-center">
-                <div 
-                  className="w-full bg-gradient-to-t from-blue-500 to-blue-300 rounded-t"
-                  style={{ height: `${value}%` }}
-                ></div>
-                <span className="text-xs mt-1 text-zinc-600 dark:text-zinc-400">{i}</span>
-              </div>
-            );
-          })}
+          {stats?.app?.onlineStats ? stats.app.onlineStats.map((stat: any, i: number) => (
+            <div key={i} className="flex-1 flex flex-col items-center">
+              <div 
+                className="w-full bg-gradient-to-t from-blue-500 to-blue-300 rounded-t"
+                style={{ height: `${Math.min(stat.count || 0, 100)}%` }}
+              ></div>
+              <span className="text-xs mt-1 text-zinc-700 dark:text-zinc-300 font-medium">{i}</span>
+            </div>
+          )) : [...Array(24)].map((_, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center">
+              <div 
+                className="w-full bg-gradient-to-t from-gray-400 to-gray-300 rounded-t"
+                style={{ height: '5%' }}
+              ></div>
+              <span className="text-xs mt-1 text-zinc-700 dark:text-zinc-300 font-medium">{i}</span>
+            </div>
+          ))}
         </div>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Количество пользователей онлайн по часам</p>
+        <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-2 font-medium">
+          {stats?.app?.onlineStats ? 'Количество пользователей онлайн по часам (реальные данные)' : 'Загрузка статистики...'}
+        </p>
       </div>
     </div>
   );

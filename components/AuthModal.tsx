@@ -62,10 +62,27 @@ export default function AuthModal({
     }
 
     try {
-      // TODO: Интегрируйте ваш SMS сервис здесь
-      setStep('code');
-      startCountdown();
+      console.log('🔍 [AUTH-MODAL] Отправка OTP:', { phone });
+      
+      const response = await fetch('/api/sms/send-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ phone }),
+      });
+
+      const data = await response.json();
+      console.log('🔍 [AUTH-MODAL] Ответ send-otp:', data);
+
+      if (response.ok) {
+        setStep('code');
+        startCountdown();
+      } else {
+        setError(data.error || 'Ошибка отправки SMS');
+      }
     } catch (err) {
+      console.error('💥 [AUTH-MODAL] Ошибка отправки SMS:', err);
       setError('Ошибка отправки SMS');
     } finally {
       setLoading(false);
@@ -78,9 +95,65 @@ export default function AuthModal({
     setError('');
 
     try {
-      // TODO: Интегрируйте проверку кода через ваш SMS сервис
-      setError('SMS сервис не подключен. Интегрируйте ваш SMS API.');
+      console.log('🔍 [AUTH-MODAL] Проверка OTP:', { phone, code });
+      
+      // Сначала проверяем/создаем пользователя
+      const loginResponse = await fetch('/api/sms/login-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone: phone || '',
+          code: code,
+        }),
+      });
+
+      const loginData = await loginResponse.json();
+      console.log('🔍 [AUTH-MODAL] Ответ login-otp:', loginData);
+
+      if (loginResponse.ok) {
+        console.log('✅ [AUTH-MODAL] OTP верифицирован, начинаем вход в NextAuth');
+        
+        // Импортируем signIn динамически чтобы избежать SSR ошибок
+        const { signIn } = await import('next-auth/react');
+        
+        // Входим через NextAuth
+        const result = await signIn('credentials', {
+          phone: phone,
+          password: 'otp-login',
+          redirect: false,
+        });
+
+        console.log('🔍 [AUTH-MODAL] Результат signIn:', result);
+
+        if (result?.error) {
+          console.log('❌ [AUTH-MODAL] Ошибка signIn:', result.error);
+          setError('Ошибка создания сессии: ' + result.error);
+        } else if (result?.ok) {
+          console.log('✅ [AUTH-MODAL] Успешный вход');
+          setError('✅ Вход успешен!');
+          
+          // Закрываем модальное окно и перенаправляем
+          setTimeout(() => {
+            onClose();
+            if (returnUrl) {
+              router.push(returnUrl);
+            } else {
+              router.push('/');
+            }
+            router.refresh();
+          }, 1000);
+        } else {
+          console.log('❌ [AUTH-MODAL] Неизвестная ошибка signIn');
+          setError('Ошибка создания сессии: неизвестная ошибка');
+        }
+      } else {
+        console.log('❌ [AUTH-MODAL] Ошибка верификации OTP:', loginData.error);
+        setError(loginData.error || 'Неверный код');
+      }
     } catch (err) {
+      console.error('💥 [AUTH-MODAL] Ошибка проверки кода:', err);
       setError('Ошибка проверки кода');
     } finally {
       setLoading(false);

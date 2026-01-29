@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import AdminHeader from '@/components/AdminHeader';
 
 export default function AdminFooterPage() {
   const [settings, setSettings] = useState({
@@ -71,18 +70,15 @@ export default function AdminFooterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-white to-zinc-50 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950">
-      <AdminHeader />
-      
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white">
-            Настройки футера
-          </h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-            Управление контактами и социальными сетями
-          </p>
-        </div>
+    <div className="max-w-4xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white">
+          Настройки футера
+        </h1>
+        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+          Управление контактами и социальными сетями
+        </p>
+      </div>
 
         {message && (
           <div className={`mb-6 rounded-2xl p-4 text-center font-semibold ${
@@ -257,7 +253,6 @@ export default function AdminFooterPage() {
             </button>
           </div>
         </form>
-      </main>
     </div>
   );
 }

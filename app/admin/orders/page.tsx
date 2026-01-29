@@ -1,49 +1,92 @@
 'use client';
 
-import { useState } from 'react';
-
-const mockOrders = [
-  {
-    id: '1',
-    user: 'user@example.com',
-    product: 'Букет роз',
-    variant: '10 роз',
-    amount: 900,
-    status: 'completed',
-    date: '2026-01-10',
-  },
-  {
-    id: '2',
-    user: 'test@example.com',
-    product: 'Букет роз',
-    variant: '1 роза',
-    amount: 100,
-    status: 'pending',
-    date: '2026-01-09',
-  },
-];
+import { useState, useEffect } from 'react';
 
 const statusLabels: Record<string, string> = {
-  pending: 'Ожидание',
-  processing: 'В обработке',
-  completed: 'Выполнен',
-  cancelled: 'Отменён',
+  PENDING: 'Ожидание',
+  PAID: 'Оплачен',
+  PROCESSING: 'В обработке',
+  COMPLETED: 'Выполнен',
+  CANCELLED: 'Отменён',
 };
 
 const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  PENDING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  PAID: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  PROCESSING: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  COMPLETED: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  CANCELLED: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
 };
 
 export default function AdminOrdersPage() {
-  const [orders] = useState(mockOrders);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
+  const [error, setError] = useState('');
 
-  const filteredOrders = filter === 'all' 
-    ? orders 
-    : orders.filter(order => order.status === filter);
+  const loadOrders = async () => {
+    try {
+      setLoading(true);
+      const url = filter === 'all' ? '/api/admin/orders' : `/api/admin/orders?status=${filter}`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error('Ошибка загрузки заказов');
+      }
+      
+      const data = await response.json();
+      setOrders(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      const response = await fetch('/api/admin/orders', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, status: newStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Ошибка обновления статуса');
+      }
+
+      await loadOrders(); // Перезагружаем заказы
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Ошибка обновления');
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+  }, [filter]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
+        <span className="ml-3 text-zinc-600 dark:text-zinc-400">Загрузка заказов...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-600 dark:text-red-400">{error}</p>
+        <button 
+          onClick={loadOrders}
+          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+        >
+          Попробовать снова
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -53,7 +96,7 @@ export default function AdminOrdersPage() {
 
       {/* Фильтры */}
       <div className="mb-4 sm:mb-6 flex flex-wrap gap-2">
-        {['all', 'pending', 'processing', 'completed', 'cancelled'].map((status) => (
+        {['all', 'PENDING', 'PAID', 'PROCESSING', 'COMPLETED', 'CANCELLED'].map((status) => (
           <button
             key={status}
             onClick={() => setFilter(status)}
@@ -90,28 +133,49 @@ export default function AdminOrdersPage() {
                   <th className="px-3 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     Статус
                   </th>
+                  <th className="px-3 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    Действия
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 bg-white dark:divide-zinc-700 dark:bg-zinc-900">
-                {filteredOrders.map((order) => (
+                {orders.map((order) => (
                   <tr key={order.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800">
                     <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm text-zinc-900 dark:text-zinc-100">
-                      {new Date(order.date).toLocaleDateString('ru-RU')}
+                      {new Date(order.createdAt).toLocaleDateString('ru-RU')}
                     </td>
                     <td className="hidden md:table-cell px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">
-                      {order.user}
+                      <div>
+                        <div className="font-medium">{order.userName || 'Unknown'}</div>
+                        <div className="text-zinc-500 dark:text-zinc-400 text-xs">
+                          {order.userEmail || order.userPhone || 'No contact'}
+                        </div>
+                      </div>
                     </td>
                     <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm text-zinc-900 dark:text-zinc-100">
-                      <div className="font-medium">{order.product}</div>
-                      <div className="text-zinc-500 dark:text-zinc-400">{order.variant}</div>
+                      <div className="font-medium">{order.productName}</div>
+                      <div className="text-zinc-500 dark:text-zinc-400">{order.variantName}</div>
                     </td>
                     <td className="hidden sm:table-cell px-4 py-3 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                      {order.amount} ₽
+                      {order.amount / 100} ₽
                     </td>
                     <td className="px-3 sm:px-4 py-3">
                       <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${statusColors[order.status]}`}>
                         {statusLabels[order.status]}
                       </span>
+                    </td>
+                    <td className="px-3 sm:px-4 py-3">
+                      <select
+                        value={order.status}
+                        onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                        className="text-xs border rounded px-2 py-1 bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600"
+                      >
+                        <option value="PENDING">Ожидание</option>
+                        <option value="PAID">Оплачен</option>
+                        <option value="PROCESSING">В обработке</option>
+                        <option value="COMPLETED">Выполнен</option>
+                        <option value="CANCELLED">Отменён</option>
+                      </select>
                     </td>
                   </tr>
                 ))}
@@ -121,7 +185,7 @@ export default function AdminOrdersPage() {
         </div>
       </div>
 
-      {filteredOrders.length === 0 && (
+      {orders.length === 0 && (
         <div className="mt-8 text-center text-zinc-500 dark:text-zinc-400">
           Заказы не найдены
         </div>

@@ -29,25 +29,12 @@ export async function PUT(request: Request) {
     }
     
     const body = await request.json();
-    const { name, email, phone } = body;
+    const { name, phone } = body;
 
-    // Проверяем что email не занят другим пользователем
-    if (email && email !== (session.user as any).email) {
-      const existingUser = await prisma.user.findUnique({
-        where: { email: email.toLowerCase() },
-      });
 
-      if (existingUser && existingUser.id !== userId) {
-        logSecurityEvent('invalid_input', { action: 'update_profile', userId, reason: 'email_exists' });
-        return NextResponse.json(
-          { error: 'Email уже используется' },
-          { status: 400 }
-        );
-      }
-    }
 
     // Проверяем что телефон не занят другим пользователем
-    if (phone && phone !== (session.user as any).phone) {
+    if (phone && phone !== session.user.phone) {
       const existingUser = await prisma.user.findUnique({
         where: { phone },
       });
@@ -63,20 +50,17 @@ export async function PUT(request: Request) {
 
     // Санитизация имени
     const sanitizedName = name ? sanitizeString(name) : undefined;
-    const sanitizedEmail = email ? email.toLowerCase() : undefined;
 
     // Обновляем профиль
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
         name: sanitizedName,
-        email: sanitizedEmail,
         phone: phone,
       },
       select: {
         id: true,
         name: true,
-        email: true,
         phone: true,
         role: true,
       },
@@ -108,7 +92,6 @@ export async function GET() {
       select: {
         id: true,
         name: true,
-        email: true,
         phone: true,
         role: true,
         createdAt: true,

@@ -8,12 +8,26 @@ import { prisma } from '@/lib/prisma';
 type ProductWithVariants = Product & { variants: ProductVariant[] };
 
 export default async function Home() {
-  // Get products from PostgreSQL database
-  const products = await prisma.product.findMany({
-    where: { isActive: true },
-    include: { variants: true },
-    orderBy: { createdAt: 'desc' },
-  }) as ProductWithVariants[];
+  // Get products using raw SQL to avoid Prisma client issues
+  const products = await prisma.$queryRawUnsafe(`
+    SELECT p.*, 
+           json_group_array(
+             json_object(
+               'id', pv.id,
+               'productId', pv.productId,
+               'name', pv.name,
+               'price', pv.price,
+               'description', pv.description,
+               'createdAt', pv.createdAt,
+               'updatedAt', pv.updatedAt
+             )
+           ) as variants
+    FROM products p
+    LEFT JOIN product_variants pv ON p.id = pv.productId
+    WHERE p.isActive = true
+    GROUP BY p.id
+    ORDER BY p.createdAt DESC
+  `) as any[];
 
   // Получаем настройки футера из API
   const footerRes = await fetch(`${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/api/footer`, {
@@ -64,10 +78,16 @@ export default async function Home() {
             </p>
           </div>
 
-          {products.length > 0 ? (
+          {products && products.length > 0 ? (
             <div className="grid gap-4 sm:gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-fr">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
+              {products.map((product: any) => (
+                <ProductCard 
+                  key={product.id} 
+                  product={{
+                    ...product,
+                    variants: product.variants ? JSON.parse(product.variants) : []
+                  }} 
+                />
               ))}
             </div>
           ) : (

@@ -24,16 +24,15 @@ export async function GET(request: Request) {
       );
     }
 
-    const orders = await prisma.order.findMany({
-      where: { userId },
-      include: {
-        product: true,
-        variant: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+    const orders = await prisma.$queryRawUnsafe(`
+      SELECT o.*, p.name as productName, p.description as productDescription,
+             v.name as variantName, v.description as variantDescription, v.price
+      FROM orders o
+      LEFT JOIN products p ON o.productId = p.id
+      LEFT JOIN product_variants v ON o.variantId = v.id
+      WHERE o.userId = ?
+      ORDER BY o.createdAt DESC
+    `, userId);
 
     return NextResponse.json(orders);
   } catch (error) {

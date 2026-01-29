@@ -1,143 +1,116 @@
-// Prisma Schema для Digital Shop
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-// Модель пользователя
 model User {
-  id           String   @id @default(cuid())
-  email        String?  @unique // Email опционален
-  password     String?  // Пароль опционален (для SMS auth не нужен)
-  name         String?
-  avatar       String?
-  phone        String?  @unique // Телефон опционален, добавляется через OTP
-  phoneVerified Boolean @default(false) // Подтвержден ли телефон
-  otp          String?  // OTP код для верификации телефона
-  otpExpiresAt DateTime? // Время истечения OTP кода
-  role         Role     @default(USER)
-  isOnline     Boolean  @default(false)
-  lastSeenAt   DateTime @default(now())
-  orders       Order[]
+  id              String           @id @default(cuid())
+  email           String?          @unique
+  password        String?
+  name            String?
+  avatar          String?
+  phone           String?          @unique
+  phoneVerified   Boolean          @default(false)
+  otp             String?
+  otpExpiresAt    DateTime?
+  role            Role             @default(USER)
+  isOnline        Boolean          @default(false)
+  lastSeenAt      DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  orders          Order[]
+  addresses       Address[]
+  sentMessages    SupportMessage[] @relation("SupportMessageSender")
   supportMessages SupportMessage[]
-  sentMessages SupportMessage[] @relation("SupportMessageSender")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
 
   @@map("users")
 }
 
-enum Role {
-  USER
-  ADMIN
-}
-
-// Модель продукта
 model Product {
   id          String           @id @default(cuid())
   name        String
   description String
   image       String?
-  images      Json?            // Multiple images as JSON array
   isActive    Boolean          @default(true)
-  variants    ProductVariant[]
-  orders      Order[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+  images      Json?
+  orders      Order[]
+  variants    ProductVariant[]
 
   @@map("products")
 }
 
-// Модель варианта продукта
 model ProductVariant {
   id          String   @id @default(cuid())
   productId   String
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   name        String
-  price       Int      // цена в копейках
+  price       Int
   description String?
-  orders      Order[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  orders      Order[]
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("product_variants")
 }
 
-// Модель заказа
 model Order {
-  id              String      @id @default(cuid())
+  id              String         @id @default(cuid())
   userId          String
-  user            User        @relation(fields: [userId], references: [id])
   productId       String
-  product         Product     @relation(fields: [productId], references: [id])
   variantId       String
+  amount          Int
+  status          OrderStatus  @default(PENDING)
+  stripeSessionId String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
   variant         ProductVariant @relation(fields: [variantId], references: [id])
-  amount          Int         // сумма в копейках
-  status          OrderStatus @default(PENDING)
-  stripeSessionId String?     // Stripe Checkout Session ID
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  product         Product        @relation(fields: [productId], references: [id])
+  user            User           @relation(fields: [userId], references: [id])
 
   @@map("orders")
 }
 
-enum OrderStatus {
-  PENDING
-  PAID
-  PROCESSING
-  COMPLETED
-  CANCELLED
-}
-
-// Модель сообщения поддержки
 model SupportMessage {
-  id        String        @id @default(cuid())
-  userId    String
-  user      User          @relation(fields: [userId], references: [id])
-  senderId  String?       // ID отправителя (если null - значит клиент)
-  sender    User?         @relation("SupportMessageSender", fields: [senderId], references: [id], onDelete: SetNull)
-  subject   String
-  message   String
-  status    SupportStatus @default(NEW)
-  reactions Json?         // Реакции на сообщение (JSON: {emoji: count})
-  attachment String?       // URL прикрепленного файла
-  attachmentType String?   // Тип файла (image, file)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id             String        @id @default(cuid())
+  userId         String
+  senderId       String?
+  subject        String
+  message        String
+  status         SupportStatus @default(NEW)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  attachment     String?
+  attachmentType String?
+  reactions      Json?
+  sender         User?         @relation("SupportMessageSender", fields: [senderId], references: [id])
+  user           User          @relation(fields: [userId], references: [id])
 
   @@map("support_messages")
 }
 
-enum SupportStatus {
-  NEW
-  READ
-  REPLIED
-}
-
-// Модель настроек футера
 model FooterSettings {
-  id           String   @id @default(cuid())
-  companyName  String   @default("Gulyaly")
-  email        String   @default("info@gulyaly.com")
-  phone        String   @default("+7 (999) 123-45-67")
-  telegram     String?
-  whatsapp     String?
-  vk           String?
-  instagram    String?
-  description  String   @default("Цифровой магазин. Просто. Быстро. Красиво.")
-  year         Int      @default(2026)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  companyName String   @default("Gulyaly")
+  email       String   @default("info@gulyaly.com")
+  phone       String   @default("+7 (999) 123-45-67")
+  telegram    String?
+  whatsapp    String?
+  vk          String?
+  instagram   String?
+  description String   @default("Цифровой магазин. Просто. Быстро. Красиво.")
+  year        Int      @default(2026)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("footer_settings")
 }
 
-// Модель настроек SMS Gateway
 model SMSSettings {
   id         String   @id @default(cuid())
   deviceID   String   @default("")
@@ -151,15 +124,52 @@ model SMSSettings {
   @@map("sms_settings")
 }
 
-// Модель логов SMS
 model SMSLog {
   id        String   @id @default(cuid())
   to        String
   text      String
-  status    String   // 'sent' or 'failed'
+  status    String
   response  String?
   error     String?
   createdAt DateTime @default(now())
 
   @@map("sms_logs")
+}
+
+model Address {
+  id          String      @id @default(cuid())
+  userId      String
+  title       String      // "Дом", "Работа", "Другое"
+  street      String      // Улица
+  house       String      // Дом
+  apartment   String?     // Квартира/офис
+  entrance    String?     // Подъезд
+  floor       String?     // Этаж
+  intercom    String?     // Домофон
+  comment     String?     // Комментарий для курьера
+  isDefault   Boolean     @default(false) // Основной адрес
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("addresses")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  COMPLETED
+  CANCELLED
+}
+
+enum SupportStatus {
+  NEW
+  READ
+  REPLIED
 }

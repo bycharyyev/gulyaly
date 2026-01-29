@@ -32,43 +32,71 @@ export default function AdminHeader() {
           <nav className="hidden lg:flex items-center gap-2 md:gap-4">
             <Link
               href="/admin"
-              className="text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              className={`text-xs sm:text-sm font-medium transition-colors ${
+                pathname === '/admin' 
+                  ? 'text-blue-600 dark:text-blue-400' 
+                  : 'text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400'
+              }`}
             >
               📊 Главная
             </Link>
             <Link
               href="/admin/status"
-              className="text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              className={`text-xs sm:text-sm font-medium transition-colors ${
+                pathname === '/admin/status' 
+                  ? 'text-blue-600 dark:text-blue-400' 
+                  : 'text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400'
+              }`}
             >
               📈 Статус
             </Link>
             <Link
               href="/admin/users"
-              className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              className={`text-sm font-medium transition-colors ${
+                pathname === '/admin/users' 
+                  ? 'text-blue-600 dark:text-blue-400' 
+                  : 'text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400'
+              }`}
             >
               👥 Пользователи
             </Link>
             <Link
               href="/admin/orders"
-              className="text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              className={`text-xs sm:text-sm font-medium transition-colors ${
+                pathname === '/admin/orders' 
+                  ? 'text-blue-600 dark:text-blue-400' 
+                  : 'text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400'
+              }`}
             >
               📦 Заказы
             </Link>
             <Link
               href="/admin/support"
-              className="text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              className={`text-xs sm:text-sm font-medium transition-colors ${
+                pathname === '/admin/support' 
+                  ? 'text-blue-600 dark:text-blue-400' 
+                  : 'text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400'
+              }`}
             >
               💬 Поддержка
             </Link>
             <Link
               href="/admin/footer"
-              className="text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              className={`text-xs sm:text-sm font-medium transition-colors ${
+                pathname === '/admin/footer' 
+                  ? 'text-blue-600 dark:text-blue-400' 
+                  : 'text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400'
+              }`}
             >
               Футер
             </Link>
             <Link
               href="/admin/sms"
-              className="text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              className={`text-xs sm:text-sm font-medium transition-colors ${
+                pathname === '/admin/sms' 
+                  ? 'text-blue-600 dark:text-blue-400' 
+                  : 'text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400'
+              }`}
             >
               SMS
             </Link>
@@ -102,49 +130,77 @@ export default function AdminHeader() {
             <Link
               href="/admin"
               onClick={() => setMobileMenuOpen(false)}
-              className="block px-4 py-3 text-base font-medium text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+              className={`block px-4 py-3 text-base font-medium rounded-lg transition-colors ${
+                pathname === '/admin' 
+                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' 
+                  : 'text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800'
+              }`}
             >
               📊 Главная
             </Link>
             <Link
               href="/admin/status"
               onClick={() => setMobileMenuOpen(false)}
-              className="block px-4 py-3 text-base font-medium text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+              className={`block px-4 py-3 text-base font-medium rounded-lg transition-colors ${
+                pathname === '/admin/status' 
+                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' 
+                  : 'text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800'
+              }`}
             >
               📈 Статус
             </Link>
             <Link
               href="/admin/users"
               onClick={() => setMobileMenuOpen(false)}
-              className="block px-4 py-3 text-base font-medium text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+              className={`block px-4 py-3 text-base font-medium rounded-lg transition-colors ${
+                pathname === '/admin/users' 
+                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' 
+                  : 'text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800'
+              }`}
             >
               👥 Пользователи
             </Link>
             <Link
               href="/admin/orders"
               onClick={() => setMobileMenuOpen(false)}
-              className="block px-4 py-3 text-base font-medium text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+              className={`block px-4 py-3 text-base font-medium rounded-lg transition-colors ${
+                pathname === '/admin/orders' 
+                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' 
+                  : 'text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800'
+              }`}
             >
               📦 Заказы
             </Link>
             <Link
               href="/admin/support"
               onClick={() => setMobileMenuOpen(false)}
-              className="block px-4 py-3 text-base font-medium text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+              className={`block px-4 py-3 text-base font-medium rounded-lg transition-colors ${
+                pathname === '/admin/support' 
+                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' 
+                  : 'text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800'
+              }`}
             >
               💬 Поддержка
             </Link>
             <Link
               href="/admin/footer"
               onClick={() => setMobileMenuOpen(false)}
-              className="block px-4 py-3 text-base font-medium text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+              className={`block px-4 py-3 text-base font-medium rounded-lg transition-colors ${
+                pathname === '/admin/footer' 
+                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' 
+                  : 'text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800'
+              }`}
             >
               Футер
             </Link>
             <Link
               href="/admin/sms"
               onClick={() => setMobileMenuOpen(false)}
-              className="block px-4 py-3 text-base font-medium text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+              className={`block px-4 py-3 text-base font-medium rounded-lg transition-colors ${
+                pathname === '/admin/sms' 
+                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' 
+                  : 'text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800'
+              }`}
             >
               SMS
             </Link>

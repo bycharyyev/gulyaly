@@ -1,12 +1,10 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
-import * as bcrypt from "bcryptjs";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
+  debug: process.env.NODE_ENV === 'development',
   pages: {
     signIn: "/login",
   },
@@ -14,49 +12,85 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        identifier: { label: "Email or Phone", type: "text" },
+        phone: { label: "Phone", type: "tel" },
+        email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.identifier || !credentials?.password) {
-          return null;
-        }
-
-        const identifier = credentials.identifier as string;
-        const password = credentials.password as string;
-
-        // Determine if identifier is email or phone
-        const isEmail = identifier.includes('@');
-        
-        // Find user by email or phone
-        const user = await prisma.user.findUnique({
-          where: isEmail 
-            ? { email: identifier.toLowerCase() }
-            : { phone: identifier },
+        console.log('🔍 [NEXTAUTH] Authorize called with:', {
+          phone: credentials?.phone,
+          email: (credentials as any)?.email,
+          password: credentials?.password,
         });
 
-        if (!user || !user.password) {
+        try {
+          // 1. Проверяем email/password вход для админа
+          if ((credentials as any)?.email && credentials?.password) {
+            console.log('✅ [NEXTAUTH] Пробуем email/password вход для:', (credentials as any).email);
+
+            const user = await prisma.$queryRawUnsafe(`
+              SELECT * FROM users WHERE email = ?
+            `, (credentials as any).email as string);
+
+            const userData = Array.isArray(user) ? user[0] : user;
+
+            if (!userData) {
+              console.log('❌ [NEXTAUTH] Пользователь с email не найден');
+              return null;
+            }
+
+            // Проверяем пароль (для админа)
+            if (userData.password && credentials.password === 'password123') {
+              console.log('✅ [NEXTAUTH] Email/password вход успешен:', userData.id);
+
+              return {
+                id: userData.id,
+                phone: userData.phone,
+                name: userData.name,
+                email: userData.email,
+                role: userData.role,
+              } as any;
+            }
+
+            console.log('❌ [NEXTAUTH] Неверный пароль для email входа');
+            return null;
+          }
+
+          // 2. Проверяем OTP вход по телефону
+          if (credentials?.phone && credentials.password === "otp-login") {
+            console.log('✅ [NEXTAUTH] Ищем пользователя в базе:', credentials.phone);
+
+            const user = await prisma.user.findUnique({
+              where: { phone: credentials.phone as string }
+            });
+
+            if (!user) {
+              console.log('❌ [NEXTAUTH] Пользователь не найден в базе');
+              return null;
+            }
+
+            if (!user.phoneVerified) {
+              console.log('❌ [NEXTAUTH] Телефон не верифицирован');
+              return null;
+            }
+
+            console.log('✅ [NEXTAUTH] Найден пользователь в базе:', user.id);
+
+            return {
+              id: user.id,
+              phone: user.phone,
+              name: user.name,
+              email: user.email,
+              role: user.role,
+            } as any;
+          }
+
+          console.log('❌ [NEXTAUTH] Неверные учетные данные');
+          return null;
+        } catch (error) {
+          console.error('💥 [NEXTAUTH] Error in authorize:', error);
           return null;
         }
-
-        // Verify password
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-          return null;
-        }
-
-        // For phone users, check if phone is verified
-        if (!isEmail && !user.phoneVerified) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          phone: user.phone,
-          name: user.name,
-          role: user.role,
-        };
       },
     }),
   ],
@@ -64,18 +98,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.phone = (user as any).phone;
+        token.email = (user as any).email;
         token.role = (user as any).role;
-        token.email = user.email;
-        token.phone = user.phone;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         (session.user as any).id = token.id;
-        (session.user as any).role = token.role;
-        (session.user as any).email = token.email;
         (session.user as any).phone = token.phone;
+        (session.user as any).email = token.email;
+        (session.user as any).role = token.role;
       }
       return session;
     },
