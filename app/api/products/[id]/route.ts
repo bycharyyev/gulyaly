@@ -77,7 +77,7 @@ export async function PUT(
     
     const id = await getId(params);
     const body = await request.json();
-    const { name, description, image, images, variants, isActive } = body;
+    const { name, description, image, images, variants, isActive, storeId } = body;
     
     // Delete existing variants
     await prisma.productVariant.deleteMany({
@@ -93,6 +93,7 @@ export async function PUT(
         image,
         images: images || [],
         isActive: isActive !== undefined ? isActive : true,
+        storeId: storeId || null,
         variants: {
           create: (variants || []).map((v: any) => ({
             name: v.name,
@@ -102,7 +103,8 @@ export async function PUT(
         }
       },
       include: {
-        variants: true
+        variants: true,
+        store: true
       }
     });
     

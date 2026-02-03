@@ -15,25 +15,23 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 
-    let whereClause = '';
-    const params: any[] = [];
+    const where = status && status !== 'all' ? { status: status as any } : {};
 
-    if (status && status !== 'all') {
-      whereClause = 'WHERE o.status = ?';
-      params.push(status);
-    }
-
-    const orders = await prisma.$queryRawUnsafe(`
-      SELECT o.*, u.name as userName, u.email as userEmail, u.phone as userPhone,
-             p.name as productName, p.description as productDescription,
-             v.name as variantName, v.description as variantDescription, v.price
-      FROM orders o
-      LEFT JOIN users u ON o.userId = u.id
-      LEFT JOIN products p ON o.productId = p.id
-      LEFT JOIN product_variants v ON o.variantId = v.id
-      ${whereClause}
-      ORDER BY o.createdAt DESC
-    `, ...params);
+    const orders = await prisma.order.findMany({
+      where,
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, phone: true },
+        },
+        product: {
+          select: { id: true, name: true, description: true },
+        },
+        variant: {
+          select: { id: true, name: true, description: true, price: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
     return NextResponse.json(orders);
   } catch (error) {
@@ -66,14 +64,21 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Неверный статус' }, { status: 400 });
     }
 
-    const result = await prisma.$queryRawUnsafe(`
-      UPDATE orders 
-      SET status = ?, updatedAt = datetime('now')
-      WHERE id = ?
-      RETURNING *
-    `, status, orderId);
-
-    const updatedOrder = Array.isArray(result) ? result[0] : result;
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: { status: status as any },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, phone: true },
+        },
+        product: {
+          select: { id: true, name: true, description: true },
+        },
+        variant: {
+          select: { id: true, name: true, description: true, price: true },
+        },
+      },
+    });
 
     // Отправляем уведомление об изменении статуса
     await sendOrderStatusNotification(orderId, status);

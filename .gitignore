@@ -46,3 +46,9 @@ next-env.d.ts
 # uploaded files
 /public/uploads/*
 !/public/uploads/.gitkeep
+
+# Security - sensitive files
+cookies.txt
+*.log
+*.pem
+*.key

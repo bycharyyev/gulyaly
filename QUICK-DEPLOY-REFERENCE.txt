@@ -1,0 +1,149 @@
+═══════════════════════════════════════════════════════════════════════════════
+                        GULYALY.COM QUICK DEPLOY REFERENCE
+═══════════════════════════════════════════════════════════════════════════════
+
+🚀 ONE-COMMAND DEPLOYMENT
+═══════════════════════════════════════════════════════════════════════════════
+Double-click:  DEPLOY-NOW.bat
+   OR
+Run manually:  deploy-vps-full.sh on VPS after uploading code
+
+
+📋 DEPLOYMENT CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+[ ] 1. Upload code:    rsync to /var/www/gulyaly
+[ ] 2. Run script:     bash deploy-vps-full.sh
+[ ] 3. Save creds:     Admin password + DB password
+[ ] 4. Update Stripe:  Edit .env with real keys
+[ ] 5. Restart PM2:    pm2 restart gulyaly
+[ ] 6. Verify:         bash verify-deployment.sh
+[ ] 7. Test site:      https://gulyaly.com
+
+
+🔥 EMERGENCY FIXES
+═══════════════════════════════════════════════════════════════════════════════
+
+Site Down → 502 Bad Gateway:
+  pm2 restart gulyaly
+  pm2 logs gulyaly --lines 50
+
+Site Down → Connection Refused:
+  systemctl restart nginx
+  pm2 status
+
+Database Error:
+  systemctl restart postgresql
+  sudo -u postgres psql -d gulyaly -c '\dt'
+
+PM2 Not Running:
+  cd /var/www/gulyaly
+  pm2 start ecosystem.config.js --env production
+
+Nginx Config Error:
+  nginx -t
+  systemctl reload nginx
+
+Out of Memory:
+  pm2 restart gulyaly
+  free -h
+
+
+⚡ CRITICAL COMMANDS
+═══════════════════════════════════════════════════════════════════════════════
+
+Status Check:
+  pm2 status && systemctl status nginx && systemctl status postgresql
+
+View Logs:
+  pm2 logs gulyaly --lines 100
+
+Restart Everything:
+  pm2 restart gulyaly && systemctl restart nginx
+
+Test Site:
+  curl -I https://gulyaly.com
+  curl http://localhost:3000/api/health
+
+Database Access:
+  sudo -u postgres psql -d gulyaly
+
+
+🔐 SECURITY QUICK CHECK
+═══════════════════════════════════════════════════════════════════════════════
+  ufw status                          # Firewall enabled?
+  netstat -tln | grep :3000           # Port 3000 localhost only?
+  certbot certificates                # SSL valid?
+  stat -c %a /var/www/gulyaly/.env    # .env is 600?
+
+
+📊 MONITORING
+═══════════════════════════════════════════════════════════════════════════════
+  pm2 monit                           # Real-time monitoring
+  tail -f /var/log/gulyaly/error.log  # Live error log
+  tail -f /var/log/nginx/access.log   # Live access log
+  df -h                               # Disk space
+
+
+🔧 CONFIGURATION FILES
+═══════════════════════════════════════════════════════════════════════════════
+  /var/www/gulyaly/.env               # Environment variables
+  /etc/nginx/sites-available/gulyaly  # Nginx virtual host
+  /var/www/gulyaly/ecosystem.config.js # PM2 configuration
+
+
+📞 VERIFICATION
+═══════════════════════════════════════════════════════════════════════════════
+Expected Working State:
+  ✓ https://gulyaly.com → 200 OK
+  ✓ PM2 status → "gulyaly" online
+  ✓ Port 3000 → localhost only
+  ✓ SSL → Valid certificate
+  ✓ Database → Tables created
+
+Run full verification:
+  bash /root/verify-deployment.sh
+
+
+🎯 TARGET SYSTEM
+═══════════════════════════════════════════════════════════════════════════════
+  Domain:    gulyaly.com
+  VPS IP:    83.166.244.79
+  OS:        Ubuntu Linux
+  App Path:  /var/www/gulyaly
+  Log Path:  /var/log/gulyaly
+  Legacy:    /var/www/aimeos (DO NOT TOUCH)
+
+
+⚙️ SERVICES
+═══════════════════════════════════════════════════════════════════════════════
+  Next.js:     Port 3000 (PM2)
+  Nginx:       Ports 80, 443
+  PostgreSQL:  Port 5432 (localhost)
+  Firewall:    UFW enabled
+
+
+🔄 UPDATE PROCESS
+═══════════════════════════════════════════════════════════════════════════════
+1. Upload new code (rsync or git pull)
+2. cd /var/www/gulyaly
+3. npm ci
+4. npx prisma migrate deploy
+5. npm run build
+6. pm2 restart gulyaly
+
+
+💾 BACKUP
+═══════════════════════════════════════════════════════════════════════════════
+Database:
+  sudo -u postgres pg_dump gulyaly > backup_$(date +%Y%m%d).sql
+
+Code:
+  tar -czf gulyaly_code_$(date +%Y%m%d).tar.gz /var/www/gulyaly
+
+Restore Database:
+  sudo -u postgres psql gulyaly < backup_YYYYMMDD.sql
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                            END OF QUICK REFERENCE
+═══════════════════════════════════════════════════════════════════════════════

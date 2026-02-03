@@ -6,6 +6,7 @@ import { Product } from '@/types';
 
 interface ProductCardProps {
   product: Product;
+  storeSlug?: string;
 }
 
 // Helper function to safely handle images array
@@ -27,32 +28,18 @@ function getImagesArray(images: any): string[] {
     }
   }
   
-  // If it's an object (from Prisma JSON field), handle Prisma-specific formats
+  // If it's an object from Prisma JSONB, handle it
   if (typeof images === 'object') {
-    // Handle Prisma JsonNull and DbNull
     if (images === null) {
       return [];
     }
-    
-    // If it has a 'set' property (from Prisma update operations), use its value
-    if (images.set && Array.isArray(images.set)) {
-      return images.set;
-    }
-    
-    // If it's a Buffer (in case of binary data), convert to string and parse
-    if (Buffer.isBuffer(images)) {
-      try {
-        const str = images.toString('utf8');
-        const parsed = JSON.parse(str);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch (e) {
-        return [];
-      }
-    }
-    
-    // If it's a plain object, try to convert to JSON string then parse
+    // Try to stringify and parse to handle Prisma JSON wrapper
     try {
       const str = JSON.stringify(images);
+      if (str.startsWith('{"prisma__"')) {
+        // Prisma JSON wrapper - extract the value
+        return [];
+      }
       const parsed = JSON.parse(str);
       return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
@@ -63,14 +50,17 @@ function getImagesArray(images: any): string[] {
   return [];
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, storeSlug }: ProductCardProps) {
   const imagesArray = getImagesArray(product.images);
   const minPrice = Math.min(...product.variants.map(v => v.price));
   const [imageError, setImageError] = useState(false);
   const imageUrl = product.image || (imagesArray.length > 0 ? imagesArray[0] : '');
 
+  // Build the product URL based on whether we have a store slug
+  const productUrl = storeSlug ? `/${storeSlug}/${product.id}` : `/product/${product.id}`;
+
   return (
-    <Link href={`/product/${product.id}`}>
+    <Link href={productUrl}>
       <div className="card-hover group h-full flex flex-col overflow-hidden rounded-2xl sm:rounded-3xl border-2 border-transparent bg-white/80 backdrop-blur-xl shadow-lg hover:shadow-2xl hover:border-purple-200 dark:bg-zinc-900/80 dark:hover:border-purple-500/50 transition-all">
         <div className="relative overflow-hidden flex-shrink-0">
           {imageUrl && !imageError ? (

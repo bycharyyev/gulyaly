@@ -1,0 +1,30 @@
+
+> gulyaly@0.1.0 build
+> next build
+
+тЪа Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\miste\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\miste\Downloads\codeakgus\package-lock.json
+
+тЦ▓ Next.js 16.1.1 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+тЬУ Compiled successfully in 15.4s
+  Running TypeScript ...
+Failed to compile.
+
+./lib/api-helpers.ts:55:20
+Type error: Argument of type '"api_error"' is not assignable to parameter of type '"login" | "logout" | "access_denied" | "rate_limit" | "invalid_input" | "otp" | "payment"'.
+
+  53 |  */
+  54 | export function handleApiError(error: any, context: string) {
+> 55 |   logSecurityEvent('api_error', { context, error: error.message });
+     |                    ^
+  56 |   
+  57 |   console.error(`[API Error] ${context}:`, error);
+  58 |   
+Next.js build worker exited with code: 1 and signal: null

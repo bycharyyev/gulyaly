@@ -39,23 +39,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Неверный ID варианта' }, { status: 400 });
     }
 
-    // Получаем вариант продукта (безопасный запрос)
-    const variant = await prisma.$queryRaw`
-      SELECT v.*, p.name as productName, p.description as productDescription, p.isActive
-      FROM product_variants v
-      LEFT JOIN products p ON v.productId = p.id
-      WHERE v.id = ${variantId}
-    `;
+    // Получаем вариант продукта с использованием Prisma
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: variantId },
+      include: {
+        product: {
+          select: { id: true, name: true, description: true, isActive: true },
+        },
+      },
+    });
 
-    const variantData = (Array.isArray(variant) ? variant[0] : variant) as any;
-
-    if (!variantData) {
+    if (!variant) {
       logSecurityEvent('invalid_input', { action: 'checkout', userId, reason: 'variant_not_found', variantId });
       return NextResponse.json({ error: 'Вариант не найден' }, { status: 404 });
     }
 
     // Проверяем что продукт активен
-    if (!variantData.isActive) {
+    if (!variant.product.isActive) {
       logSecurityEvent('invalid_input', { action: 'checkout', userId, reason: 'product_inactive', variantId });
       return NextResponse.json({ error: 'Продукт недоступен' }, { status: 400 });
     }
@@ -68,21 +68,21 @@ export async function POST(request: Request) {
           price_data: {
             currency: 'rub',
             product_data: {
-              name: `${variantData.productName} - ${variantData.name}`,
-              description: variantData.description || variantData.productDescription,
+              name: `${variant.product.name} - ${variant.name}`,
+              description: variant.description || variant.product.description,
             },
-            unit_amount: variantData.price, // цена в копейках
+            unit_amount: variant.price, // цена в копейках
           },
           quantity: 1,
         },
       ],
       mode: 'payment',
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/profile?tab=orders&success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/product/${variantData.productId}?canceled=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/product/${variant.productId}?canceled=true`,
       metadata: {
         userId: (session.user as any).id,
-        productId: variantData.productId,
-        variantId: variantData.id,
+        productId: variant.productId,
+        variantId: variant.id,
       },
     });
 

@@ -12,6 +12,7 @@ function AdminProductsPageContent() {
   const isAdmin = session && session.user && (session.user as any)?.role === 'ADMIN';
   
   const [products, setProducts] = useState<any[]>([]);
+  const [stores, setStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
@@ -21,7 +22,8 @@ function AdminProductsPageContent() {
     image: '',
     images: [] as string[],
     variants: [{ name: '', price: '', description: '' }],
-    isActive: true
+    isActive: true,
+    storeId: ''
   });
   const [submitting, setSubmitting] = useState(false);
   const [unreadSupportCount, setUnreadSupportCount] = useState(0);
@@ -32,8 +34,19 @@ function AdminProductsPageContent() {
       redirect('/login');
     } else {
       fetchProducts();
+      fetchStores();
     }
   }, [session, status, isAdmin]);
+
+  const fetchStores = async () => {
+    try {
+      const res = await fetch('/api/stores');
+      const data = await res.json();
+      setStores(data);
+    } catch (error) {
+      console.error('Ошибка загрузки магазинов:', error);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -70,7 +83,8 @@ function AdminProductsPageContent() {
         price: (v.price / 100).toString(),
         description: v.description || '',
       })),
-      isActive: product.isActive !== false
+      isActive: product.isActive !== false,
+      storeId: product.storeId || ''
     });
     setShowAddForm(true);
   };
@@ -189,7 +203,8 @@ function AdminProductsPageContent() {
                 image: '',
                 images: [],
                 variants: [{ name: '', price: '', description: '' }],
-                isActive: true
+                isActive: true,
+                storeId: ''
               });
             }}
             className="apple-button rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold text-white shadow-lg hover:shadow-xl flex-1 sm:flex-none"
@@ -202,6 +217,13 @@ function AdminProductsPageContent() {
             className="apple-button rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold text-white shadow-lg hover:shadow-xl flex-1 sm:flex-none text-center"
           >
             Пользователи
+          </a>
+          
+          <a
+            href="/admin/stores"
+            className="apple-button rounded-full bg-gradient-to-r from-orange-500 to-red-500 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold text-white shadow-lg hover:shadow-xl flex-1 sm:flex-none text-center"
+          >
+            Магазины
           </a>
                     
           <a
@@ -249,6 +271,28 @@ function AdminProductsPageContent() {
                   rows={3}
                   placeholder="Опишите продукт..."
                 />
+              </div>
+
+              {/* Магазин */}
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                  Магазин
+                </label>
+                <select
+                  value={formData.storeId}
+                  onChange={(e) => setFormData({ ...formData, storeId: e.target.value })}
+                  className="w-full rounded-2xl border-2 border-blue-200 bg-white px-4 py-3 text-zinc-900 focus:border-blue-500 focus:outline-none dark:border-blue-900 dark:bg-zinc-800 dark:text-white"
+                >
+                  <option value="">Без магазина</option>
+                  {stores.map((store: any) => (
+                    <option key={store.id} value={store.id}>
+                      {store.name} ({store.slug})
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Товар без магазина будет показываться на главной странице
+                </p>
               </div>
 
               {/* Статус продукта */}
@@ -405,7 +449,7 @@ function AdminProductsPageContent() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setShowAddForm(false); setFormData({ name: '', description: '', image: '', images: [], variants: [{ name: '', price: '', description: '' }], isActive: true }); }}
+                  onClick={() => { setShowAddForm(false); setFormData({ name: '', description: '', image: '', images: [], variants: [{ name: '', price: '', description: '' }], isActive: true, storeId: '' }); }}
                   className="rounded-full border-2 border-zinc-300 px-8 py-4 font-bold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 transition-all"
                 >
                   Отмена
@@ -427,8 +471,23 @@ function AdminProductsPageContent() {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="mb-2 inline-block rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-1 text-xs font-bold text-white">
-                      {product.isActive ? 'Активен' : 'Неактивен'}
+                    <div className="mb-2 flex items-center gap-2 flex-wrap">
+                      <div className="inline-block rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-1 text-xs font-bold text-white">
+                        {product.isActive ? 'Активен' : 'Неактивен'}
+                      </div>
+                      {product.store ? (
+                        <a
+                          href={`/${product.store.slug}`}
+                          target="_blank"
+                          className="inline-flex items-center gap-1 rounded-full bg-orange-100 border border-orange-300 px-3 py-1 text-xs font-semibold text-orange-700 dark:from-orange-900/30 dark:to-amber-900/30 dark:border-orange-800 dark:text-orange-400 hover:opacity-80 transition-opacity"
+                        >
+                          🏪 {product.store.name}
+                        </a>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 dark:bg-gray-900/30 dark:border-gray-800 dark:text-gray-400">
+                          📦 Без магазина
+                        </span>
+                      )}
                     </div>
                     <h3 className="text-2xl font-bold text-zinc-900 dark:text-white">
                       {product.name}
@@ -520,6 +579,28 @@ function AdminProductsPageContent() {
                           rows={3}
                           placeholder="Опишите продукт..."
                         />
+                      </div>
+
+                      {/* Магазин */}
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                          Магазин
+                        </label>
+                        <select
+                          value={formData.storeId}
+                          onChange={(e) => setFormData({ ...formData, storeId: e.target.value })}
+                          className="w-full rounded-2xl border-2 border-blue-200 bg-white px-4 py-3 text-zinc-900 focus:border-blue-500 focus:outline-none dark:border-blue-900 dark:bg-zinc-800 dark:text-white"
+                        >
+                          <option value="">Без магазина</option>
+                          {stores.map((store: any) => (
+                            <option key={store.id} value={store.id}>
+                              {store.name} ({store.slug})
+                            </option>
+                          ))}
+                        </select>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          Товар без магазина будет показываться на главной странице
+                        </p>
                       </div>
 
                       {/* Статус продукта */}

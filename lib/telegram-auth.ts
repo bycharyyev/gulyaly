@@ -7,22 +7,22 @@ const userSessions = new Map<string, { userId: string; authTime: number }>();
 // Проверка аутентификации пользователя
 export async function authenticateTelegramUser(userId: string, password: string): Promise<boolean> {
   try {
-    // Ищем пользователя в базе данных
-    const user = await prisma.$queryRawUnsafe(`
-      SELECT id, role FROM users WHERE id = ? AND role = 'ADMIN'
-    `, userId) as any[];
+    // Ищем пользователя в базе данных через Prisma
+    const user = await prisma.user.findFirst({
+      where: { id: userId, role: 'ADMIN' },
+      select: { id: true },
+    });
 
-    if (user.length === 0) {
+    if (!user) {
       return false;
     }
 
-    // Проверяем пароль (можно использовать системный пароль или env)
+    // Проверяем пароль
     const adminPassword = process.env.TELEGRAM_ADMIN_PASSWORD || 'admin123';
     
     if (password === adminPassword) {
-      // Сохраняем сессию на 24 часа
       userSessions.set(userId.toString(), {
-        userId: user[0].id,
+        userId: user.id,
         authTime: Date.now()
       });
       return true;
@@ -62,11 +62,12 @@ export function logoutTelegramUser(userId: string): void {
 // Получение ID администратора для Telegram
 export async function getTelegramAdminId(): Promise<string | null> {
   try {
-    const admin = await prisma.$queryRawUnsafe(`
-      SELECT id FROM users WHERE role = 'ADMIN' LIMIT 1
-    `) as any[];
+    const admin = await prisma.user.findFirst({
+      where: { role: 'ADMIN' },
+      select: { id: true },
+    });
 
-    return admin.length > 0 ? admin[0].id : null;
+    return admin?.id || null;
   } catch (error) {
     console.error('Error getting admin ID:', error);
     return null;

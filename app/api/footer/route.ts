@@ -5,19 +5,22 @@ import { prisma } from '@/lib/prisma';
 // GET /api/footer - Получить настройки футера
 export async function GET() {
   try {
-    let settings = await prisma.$queryRawUnsafe(`SELECT * FROM footer_settings LIMIT 1`);
-    
+    let settings = await prisma.footerSettings.findFirst();
+
     // Если настроек нет, создаем дефолтные
-    if (!settings || (Array.isArray(settings) && settings.length === 0)) {
-      settings = await prisma.$queryRawUnsafe(`
-        INSERT INTO footer_settings (id, companyName, email, phone, description, year, createdAt, updatedAt)
-        VALUES (cuid(), 'Gulyaly', 'info@gulyaly.com', '+7 (999) 123-45-67', 'Цифровой магазин. Просто. Быстро. Красиво.', ${new Date().getFullYear()}, datetime('now'), datetime('now'))
-        RETURNING *
-      `);
+    if (!settings) {
+      settings = await prisma.footerSettings.create({
+        data: {
+          companyName: 'Gulyaly',
+          email: 'info@gulyaly.com',
+          phone: '+7 (999) 123-45-67',
+          description: 'Цифровой магазин. Просто. Быстро. Красиво.',
+          year: new Date().getFullYear(),
+        },
+      });
     }
 
-    const result = Array.isArray(settings) ? settings[0] : settings;
-    return NextResponse.json(result);
+    return NextResponse.json(settings);
   } catch (error) {
     console.error('Error fetching footer settings:', error);
     return NextResponse.json(
@@ -50,28 +53,41 @@ export async function PUT(request: Request) {
     } = body;
 
     // Find existing settings
-    const existing = await prisma.$queryRawUnsafe(`SELECT * FROM footer_settings LIMIT 1`);
+    let existing = await prisma.footerSettings.findFirst();
     
     let settings;
-    if (existing && (!Array.isArray(existing) || existing.length > 0)) {
-      const existingRecord = Array.isArray(existing) ? existing[0] : existing;
-      const existingId = (existingRecord as any).id;
-      settings = await prisma.$queryRawUnsafe(`
-        UPDATE footer_settings 
-        SET companyName = ?, email = ?, phone = ?, telegram = ?, whatsapp = ?, vk = ?, instagram = ?, description = ?, year = ?, updatedAt = datetime('now')
-        WHERE id = ?
-        RETURNING *
-      `, companyName, email, phone, telegram || null, whatsapp || null, vk || null, instagram || null, description, parseInt(year) || new Date().getFullYear(), existingId);
+    if (existing) {
+      settings = await prisma.footerSettings.update({
+        where: { id: existing.id },
+        data: {
+          companyName,
+          email,
+          phone,
+          telegram,
+          whatsapp,
+          vk,
+          instagram,
+          description,
+          year: year || new Date().getFullYear(),
+        },
+      });
     } else {
-      settings = await prisma.$queryRawUnsafe(`
-        INSERT INTO footer_settings (id, companyName, email, phone, telegram, whatsapp, vk, instagram, description, year, createdAt, updatedAt)
-        VALUES (cuid(), ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-        RETURNING *
-      `, companyName, email, phone, telegram || null, whatsapp || null, vk || null, instagram || null, description, parseInt(year) || new Date().getFullYear());
+      settings = await prisma.footerSettings.create({
+        data: {
+          companyName,
+          email,
+          phone,
+          telegram,
+          whatsapp,
+          vk,
+          instagram,
+          description,
+          year: year || new Date().getFullYear(),
+        },
+      });
     }
 
-    const result = Array.isArray(settings) ? settings[0] : settings;
-    return NextResponse.json(result);
+    return NextResponse.json(settings);
   } catch (error) {
     console.error('Error updating footer settings:', error);
     return NextResponse.json(

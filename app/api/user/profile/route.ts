@@ -34,7 +34,7 @@ export async function PUT(request: Request) {
 
 
     // Проверяем что телефон не занят другим пользователем
-    if (phone && phone !== session.user.phone) {
+    if (phone && phone !== (session.user as any).phone) {
       const existingUser = await prisma.user.findUnique({
         where: { phone },
       });

@@ -1,0 +1,44 @@
+
+> gulyaly@0.1.0 build
+> next build
+
+тЪа Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\miste\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\miste\Downloads\codeakgus\package-lock.json
+
+тЦ▓ Next.js 16.1.1 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+тЬУ Compiled successfully in 15.0s
+  Running TypeScript ...
+  Collecting page data using 7 workers ...
+STRIPE_SECRET_KEY is not defined - Stripe features will be disabled
+STRIPE_SECRET_KEY is not defined - Stripe features will be disabled
+prisma:error 
+Invalid `prisma.store.findMany()` invocation:
+
+
+Can't reach database server at `localhost:5432`
+
+Please make sure your database server is running at `localhost:5432`.
+Error [PrismaClientInitializationError]: 
+Invalid `prisma.store.findMany()` invocation:
+
+
+Can't reach database server at `localhost:5432`
+
+Please make sure your database server is running at `localhost:5432`.
+    at async Object.i [as generateStaticParams] (C:\Users\miste\Downloads\codeakgus\.next\server\chunks\ssr\[root-of-the-server]__0ad8812c._.js:1:6723) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+
+> Build error occurred
+Error: Failed to collect page data for /[storeSlug]
+    at ignore-listed frames {
+  type: 'Error'
+}

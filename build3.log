@@ -1,0 +1,30 @@
+
+> gulyaly@0.1.0 build
+> next build
+
+тЪа Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\miste\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\miste\Downloads\codeakgus\package-lock.json
+
+тЦ▓ Next.js 16.1.1 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+тЬУ Compiled successfully in 18.7s
+  Running TypeScript ...
+Failed to compile.
+
+./components/admin/AdminDashboard.tsx:159:32
+Type error: Cannot find name 'signOut'.
+
+  157 |               </div>
+  158 |               <button
+> 159 |                 onClick={() => signOut()}
+      |                                ^
+  160 |                 className="flex items-center text-sm text-gray-500 hover:text-gray-700"
+  161 |               >
+  162 |                 <LogOut className="mr-1 h-4 w-4" />
+Next.js build worker exited with code: 1 and signal: null

@@ -1,6 +1,12 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
+import { compare } from "bcryptjs";
+import { logSecurityEvent } from "@/lib/security";
+
+// Admin credentials from environment variables
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
@@ -17,64 +23,110 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        console.log('🔍 [NEXTAUTH] Authorize called with:', {
-          phone: credentials?.phone,
-          email: (credentials as any)?.email,
-          password: credentials?.password,
-        });
+        const loginMethod = credentials?.phone ? 'phone_otp' :
+                           (credentials as any)?.email ? 'email_password' : 'unknown';
 
         try {
-          // 1. Проверяем email/password вход для админа
+          // 1. Проверяем email/password вход для админа (env-based, bcrypt)
           if ((credentials as any)?.email && credentials?.password) {
-            console.log('✅ [NEXTAUTH] Пробуем email/password вход для:', (credentials as any).email);
-
-            const user = await prisma.$queryRawUnsafe(`
-              SELECT * FROM users WHERE email = ?
-            `, (credentials as any).email as string);
-
-            const userData = Array.isArray(user) ? user[0] : user;
-
-            if (!userData) {
-              console.log('❌ [NEXTAUTH] Пользователь с email не найден');
+            // Check if admin credentials are configured
+            if (!ADMIN_EMAIL || !ADMIN_PASSWORD_HASH) {
+              logSecurityEvent('login', {
+                action: 'admin_login_attempt',
+                result: 'failed',
+                reason: 'admin_not_configured',
+                email: (credentials as any).email
+              });
               return null;
             }
 
-            // Проверяем пароль (для админа)
-            if (userData.password && credentials.password === 'password123') {
-              console.log('✅ [NEXTAUTH] Email/password вход успешен:', userData.id);
-
-              return {
-                id: userData.id,
-                phone: userData.phone,
-                name: userData.name,
-                email: userData.email,
-                role: userData.role,
-              } as any;
+            // Verify admin email matches configured admin email
+            if ((credentials as any).email !== ADMIN_EMAIL) {
+              logSecurityEvent('login', {
+                action: 'admin_login_attempt',
+                result: 'failed',
+                reason: 'email_mismatch',
+                email: (credentials as any).email
+              });
+              return null;
             }
 
-            console.log('❌ [NEXTAUTH] Неверный пароль для email входа');
-            return null;
+            // Verify password using bcrypt
+            const passwordValid = await compare(
+              credentials.password as string,
+              ADMIN_PASSWORD_HASH
+            );
+
+            if (!passwordValid) {
+              logSecurityEvent('login', {
+                action: 'admin_login_attempt',
+                result: 'failed',
+                reason: 'invalid_password',
+                email: ADMIN_EMAIL
+              });
+              return null;
+            }
+
+            logSecurityEvent('login', {
+              action: 'admin_login_success',
+              email: ADMIN_EMAIL
+            });
+
+            // Return admin session with admin user data from database
+            const adminUser = await prisma.user.findFirst({
+              where: { role: 'ADMIN' },
+              take: 1
+            });
+
+            if (!adminUser) {
+              logSecurityEvent('login', {
+                action: 'admin_login_attempt',
+                result: 'failed',
+                reason: 'no_admin_user_in_db',
+                email: ADMIN_EMAIL
+              });
+              return null;
+            }
+
+            return {
+              id: adminUser.id,
+              phone: adminUser.phone,
+              name: adminUser.name,
+              email: adminUser.email,
+              role: 'ADMIN',
+            } as any;
           }
 
           // 2. Проверяем OTP вход по телефону
           if (credentials?.phone && credentials.password === "otp-login") {
-            console.log('✅ [NEXTAUTH] Ищем пользователя в базе:', credentials.phone);
-
             const user = await prisma.user.findUnique({
               where: { phone: credentials.phone as string }
             });
 
             if (!user) {
-              console.log('❌ [NEXTAUTH] Пользователь не найден в базе');
+              logSecurityEvent('login', {
+                action: 'otp_login_attempt',
+                result: 'failed',
+                reason: 'user_not_found',
+                phone: credentials.phone
+              });
               return null;
             }
 
             if (!user.phoneVerified) {
-              console.log('❌ [NEXTAUTH] Телефон не верифицирован');
+              logSecurityEvent('login', {
+                action: 'otp_login_attempt',
+                result: 'failed',
+                reason: 'phone_not_verified',
+                userId: user.id
+              });
               return null;
             }
 
-            console.log('✅ [NEXTAUTH] Найден пользователь в базе:', user.id);
+            logSecurityEvent('login', {
+              action: 'otp_login_success',
+              userId: user.id
+            });
 
             return {
               id: user.id,
@@ -85,10 +137,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             } as any;
           }
 
-          console.log('❌ [NEXTAUTH] Неверные учетные данные');
+          logSecurityEvent('login', {
+            action: 'login_attempt',
+            result: 'failed',
+            reason: 'invalid_credentials',
+            loginMethod
+          });
           return null;
         } catch (error) {
-          console.error('💥 [NEXTAUTH] Error in authorize:', error);
+          logSecurityEvent('login', {
+            action: 'login_attempt',
+            result: 'error',
+            loginMethod,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
           return null;
         }
       },
