@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
+import { auth } from "@/lib/auth";
 import { AuthModalProvider } from "@/lib/AuthModalContext";
 import AuthModalWrapper from "@/components/AuthModalWrapper";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -28,11 +29,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+  
   return (
     <html lang="ru" className="scroll-smooth" suppressHydrationWarning>
       <head>
@@ -45,7 +48,7 @@ export default function RootLayout({
       >
         <ThemeScript />
         <LoadingScreen />
-        <SessionProvider>
+        <SessionProvider session={session}>
           <AuthModalProvider>
             {children}
             <AuthModalWrapper />

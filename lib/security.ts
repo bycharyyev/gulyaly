@@ -264,7 +264,7 @@ if (typeof setInterval !== 'undefined') {
 // ==================== SECURITY EVENT LOGGING ====================
 
 export function logSecurityEvent(
-  event: 'login' | 'logout' | 'access_denied' | 'rate_limit' | 'invalid_input' | 'otp' | 'payment' | 'api_error',
+  event: 'login' | 'logout' | 'access_denied' | 'rate_limit' | 'invalid_input' | 'otp' | 'payment' | 'api_error' | 'seller_application_submitted' | 'seller_application_reviewed' | 'auth_failure' | 'auth_success',
   details: Record<string, any>
 ) {
   const logEntry = {

@@ -9,13 +9,28 @@ import Link from 'next/link';
 type ProductWithVariants = Product & { variants: ProductVariant[] };
 
 export default async function Home() {
-  // Get active products
+  // Get only ACTIVE and APPROVED products from stores
   const products = await prisma.product.findMany({
     where: { 
       isActive: true,
-      storeId: null, // Products not assigned to any store
+      status: 'ACTIVE',
+      store: {
+        isActive: true,
+        owner: {
+          banned: false
+        }
+      }
     },
-    include: { variants: { orderBy: { id: 'asc' } } },
+    include: { 
+      variants: { orderBy: { id: 'asc' } },
+      store: {
+        select: {
+          id: true,
+          name: true,
+          slug: true
+        }
+      }
+    },
     orderBy: { createdAt: 'desc' }
   }) as any[];
 

@@ -59,10 +59,10 @@ export default function Header() {
                   Войти
                 </Link>
                 <Link
-                  href="/profile"
+                  href="/login"
                   className="apple-button rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-4 md:px-5 py-2 text-sm font-semibold text-white shadow-md hover:shadow-lg"
                 >
-                  Профиль
+                  Регистрация
                 </Link>
               </>
             )}
@@ -121,11 +121,11 @@ export default function Header() {
                   Войти
                 </Link>
                 <Link
-                  href="/profile"
+                  href="/login"
                   onClick={() => setMobileMenuOpen(false)}
                   className="block px-4 py-3 text-base font-medium text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg transition-colors"
                 >
-                  Профиль
+                  Регистрация
                 </Link>
               </>
             )}

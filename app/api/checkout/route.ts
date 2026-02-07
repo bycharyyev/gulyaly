@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
 import { checkRateLimit, logSecurityEvent } from '@/lib/security';
+import { calculateCommission, validateCommissionBreakdown } from '@/lib/commission';
 
 export async function POST(request: Request) {
   try {
@@ -44,7 +45,20 @@ export async function POST(request: Request) {
       where: { id: variantId },
       include: {
         product: {
-          select: { id: true, name: true, description: true, isActive: true },
+          select: { 
+            id: true, 
+            name: true, 
+            description: true, 
+            isActive: true,
+            storeId: true,
+            store: {
+              select: {
+                id: true,
+                commission: true,
+                ownerId: true
+              }
+            }
+          },
         },
       },
     });
@@ -59,6 +73,74 @@ export async function POST(request: Request) {
       logSecurityEvent('invalid_input', { action: 'checkout', userId, reason: 'product_inactive', variantId });
       return NextResponse.json({ error: 'Продукт недоступен' }, { status: 400 });
     }
+
+    // ❗ Рассчитать commission
+    if (!variant.product.store) {
+      logSecurityEvent('invalid_input', { action: 'checkout', userId, reason: 'store_not_found', variantId });
+      return NextResponse.json({ error: 'Магазин не найден' }, { status: 404 });
+    }
+
+    const commissionRate = parseFloat(variant.product.store.commission);
+    const commissionBreakdown = calculateCommission(variant.price, commissionRate);
+    
+    // Validate breakdown
+    if (!validateCommissionBreakdown(commissionBreakdown)) {
+      console.error('Invalid commission breakdown:', commissionBreakdown);
+      return NextResponse.json({ error: 'Ошибка расчета комиссии' }, { status: 500 });
+    }
+
+    // ❗ SECURITY FIX: Prevent race condition - check for existing pending order
+    const existingPendingOrder = await prisma.order.findFirst({
+      where: {
+        userId,
+        productId: variant.productId,
+        variantId: variant.id,
+        status: 'PENDING',
+        createdAt: {
+          gte: new Date(Date.now() - 5 * 60 * 1000) // Last 5 minutes
+        }
+      }
+    });
+
+    if (existingPendingOrder) {
+      logSecurityEvent('invalid_input', {
+        action: 'checkout_duplicate_prevented',
+        userId,
+        existingOrderId: existingPendingOrder.id,
+        variantId
+      });
+      return NextResponse.json(
+        { 
+          error: 'У вас уже есть активный заказ на этот товар',
+          orderId: existingPendingOrder.id 
+        },
+        { status: 400 }
+      );
+    }
+
+    // ❗ Создать Order с Transaction в транзакции
+    const order = await prisma.order.create({
+      data: {
+        userId,
+        productId: variant.productId,
+        variantId: variant.id,
+        amount: variant.price,
+        status: 'PENDING'
+      }
+    });
+
+    // ❗ Создать Transaction
+    await prisma.transaction.create({
+      data: {
+        orderId: order.id,
+        totalAmount: commissionBreakdown.totalAmount,
+        platformFee: commissionBreakdown.platformFee,
+        sellerAmount: commissionBreakdown.sellerAmount,
+        stripeFee: commissionBreakdown.stripeFee,
+        status: 'PENDING',
+        sellerId: variant.product.store.ownerId
+      }
+    });
 
     // Создаем Stripe Checkout Session
     const checkoutSession = await stripe.checkout.sessions.create({
@@ -83,7 +165,22 @@ export async function POST(request: Request) {
         userId: (session.user as any).id,
         productId: variant.productId,
         variantId: variant.id,
+        orderId: order.id, // ❗ Link to order
       },
+    });
+
+    // ❗ Обновить order с stripeSessionId
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { stripeSessionId: checkoutSession.id }
+    });
+
+    logSecurityEvent('payment', { 
+      action: 'checkout_session_created', 
+      userId, 
+      orderId: order.id,
+      sessionId: checkoutSession.id,
+      amount: variant.price
     });
 
     return NextResponse.json({ url: checkoutSession.url });

@@ -6,7 +6,12 @@ import { sendOrderNotification } from '@/lib/notifications';
 import Stripe from 'stripe';
 
 // Whitelist of allowed event types
-const ALLOWED_EVENTS = ['checkout.session.completed'] as const;
+const ALLOWED_EVENTS = [
+  'checkout.session.completed',
+  'payment_intent.succeeded',
+  'charge.refunded',
+  'payment_intent.payment_failed'
+] as const;
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -50,87 +55,200 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: true, ignored: true });
   }
 
-  // 5. Handle checkout.session.completed
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session;
+  // 5. Handle events
+  try {
+    // ❗ SECURITY FIX: Check if webhook event already processed (idempotency)
+    const existingEvent = await prisma.webhookEvent.findUnique({
+      where: { stripeEventId: event.id }
+    });
 
-    // Validate metadata presence
-    if (!session.metadata?.userId || !session.metadata?.productId || !session.metadata?.variantId) {
-      console.error('[STRIPE_WEBHOOK] Missing required metadata in session:', session.id);
-      return NextResponse.json({ error: 'Invalid session metadata' }, { status: 400 });
+    if (existingEvent) {
+      console.log(`[STRIPE_WEBHOOK] Event ${event.id} already processed, skipping`);
+      return NextResponse.json({ received: true, duplicate: true });
     }
 
-    const { userId, productId, variantId } = session.metadata;
-    const amountTotal = session.amount_total || 0;
-    const stripeSessionId = session.id;
-
-    try {
-      // 6. Idempotency check - prevent duplicate order creation
-      const existingOrder = await prisma.order.findFirst({
-        where: { stripeSessionId },
-      });
-
-      if (existingOrder) {
-        console.log(`[STRIPE_WEBHOOK] Order already exists for session ${stripeSessionId}, skipping`);
-        return NextResponse.json({ received: true, orderId: existingOrder.id, duplicate: true });
-      }
-
-      // 7. Atomic transaction for order creation
-      const order = await prisma.$transaction(async (tx) => {
-        // Verify user exists
-        const user = await tx.user.findUnique({ where: { id: userId } });
-        if (!user) {
-          throw new Error(`User ${userId} not found`);
-        }
-
-        // Verify product exists
-        const product = await tx.product.findUnique({ where: { id: productId } });
-        if (!product) {
-          throw new Error(`Product ${productId} not found`);
-        }
-
-        // Verify variant exists
-        const variant = await tx.productVariant.findUnique({ where: { id: variantId } });
-        if (!variant) {
-          throw new Error(`Variant ${variantId} not found`);
-        }
-
-        // Create order
-        const newOrder = await tx.order.create({
-          data: {
-            userId,
-            productId,
-            variantId,
-            amount: amountTotal,
-            status: 'PAID',
-            stripeSessionId,
-          },
-        });
-
-        return newOrder;
-      });
-
-      console.log(`[STRIPE_WEBHOOK] Order created successfully: ${order.id} for user ${userId}`);
-
-      // 8. Send notifications (non-blocking, separate try/catch)
-      try {
-        await sendOrderNotification(order.id, userId, productId, amountTotal);
-      } catch (notificationError) {
-        // Log but don't fail the webhook - order is already created
-        const errorMessage = notificationError instanceof Error ? notificationError.message : 'Unknown error';
-        console.error(`[STRIPE_WEBHOOK] Notification failed for order ${order.id}: ${errorMessage}`);
-      }
-
-      return NextResponse.json({ received: true, orderId: order.id });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[STRIPE_WEBHOOK] Failed to create order: ${errorMessage}`);
-
-      // Log without exposing internal details
-      return NextResponse.json({ error: 'Failed to process order' }, { status: 500 });
+    // Process event
+    let result;
+    switch (event.type) {
+      case 'checkout.session.completed':
+        result = await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session, event.id);
+        break;
+      
+      case 'payment_intent.succeeded':
+        result = await handlePaymentSucceeded(event.data.object as Stripe.PaymentIntent, event.id);
+        break;
+      
+      case 'charge.refunded':
+        result = await handleChargeRefunded(event.data.object as Stripe.Charge, event.id);
+        break;
+      
+      case 'payment_intent.payment_failed':
+        result = await handlePaymentFailed(event.data.object as Stripe.PaymentIntent, event.id);
+        break;
+      
+      default:
+        console.log(`[STRIPE_WEBHOOK] Unhandled event type: ${event.type}`);
+        return NextResponse.json({ received: true, ignored: true });
     }
+
+    return result;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[STRIPE_WEBHOOK] Error processing ${event.type}:`, errorMessage);
+    return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
+  }
+}
+
+// ❗ Handle checkout.session.completed
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session, eventId: string) {
+  console.log(`[WEBHOOK] checkout.session.completed: ${session.id}`);
+
+  // Get orderId from metadata (created during checkout)
+  const orderId = session.metadata?.orderId;
+  
+  if (!orderId) {
+    console.error('[WEBHOOK] Missing orderId in session metadata');
+    return NextResponse.json({ error: 'Missing orderId' }, { status: 400 });
   }
 
-  // Fallback for other allowed but unhandled events
-  return NextResponse.json({ received: true });
+  // Update order with payment_intent_id
+  const order = await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      stripePaymentIntentId: session.payment_intent as string,
+      status: 'PAID',
+      paidAt: new Date()
+    },
+    include: { transaction: true }
+  });
+
+  console.log(`[WEBHOOK] Order ${orderId} marked as PAID`);
+
+  // ❗ Record webhook event
+  await prisma.webhookEvent.create({
+    data: {
+      stripeEventId: eventId,
+      type: 'checkout.session.completed',
+      status: 'PROCESSED'
+    }
+  });
+
+  // Send notification
+  try {
+    await sendOrderNotification(order.id, order.userId, order.productId, order.amount);
+  } catch (err) {
+    console.error('[WEBHOOK] Notification failed:', err);
+  }
+
+  return NextResponse.json({ received: true, orderId: order.id });
+}
+
+// ❗ Handle payment_intent.succeeded (CRITICAL)
+async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent, eventId: string) {
+  console.log(`[WEBHOOK] payment_intent.succeeded: ${paymentIntent.id}`);
+
+  // Find order by payment_intent_id
+  const order = await prisma.order.findFirst({
+    where: { stripePaymentIntentId: paymentIntent.id },
+    include: { transaction: true }
+  });
+
+  if (!order) {
+    console.error(`[WEBHOOK] Order not found for payment_intent: ${paymentIntent.id}`);
+    return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+  }
+
+  // ❗ Idempotency check
+  if (order.status === 'PAID' && order.transaction?.status === 'COMPLETED') {
+    console.log(`[WEBHOOK] Order ${order.id} already processed, skipping`);
+    return NextResponse.json({ received: true, orderId: order.id, duplicate: true });
+  }
+
+  // ❗ Update Order + Transaction atomically
+  await prisma.$transaction([
+    // Update Order status
+    prisma.order.update({
+      where: { id: order.id },
+      data: {
+        status: 'PAID',
+        paidAt: new Date()
+      }
+    }),
+    // Update Transaction status
+    prisma.transaction.update({
+      where: { orderId: order.id },
+      data: {
+        status: 'COMPLETED',
+        stripePaymentIntentId: paymentIntent.id
+      }
+    })
+  ]);
+
+  console.log(`[WEBHOOK] Order ${order.id} & Transaction marked as COMPLETED`);
+
+  return NextResponse.json({ received: true, orderId: order.id });
+}
+
+// ❗ Handle charge.refunded
+async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
+  console.log(`[WEBHOOK] charge.refunded: ${charge.id}`);
+
+  const paymentIntentId = charge.payment_intent as string;
+  
+  // Find order
+  const order = await prisma.order.findFirst({
+    where: { stripePaymentIntentId: paymentIntentId },
+    include: { transaction: true }
+  });
+
+  if (!order) {
+    console.error(`[WEBHOOK] Order not found for charge: ${charge.id}`);
+    return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+  }
+
+  // ❗ Update Order + Transaction to REFUNDED
+  await prisma.$transaction([
+    prisma.order.update({
+      where: { id: order.id },
+      data: { status: 'REFUNDED' }
+    }),
+    prisma.transaction.update({
+      where: { orderId: order.id },
+      data: { status: 'REFUNDED' }
+    })
+  ]);
+
+  console.log(`[WEBHOOK] Order ${order.id} refunded`);
+
+  return NextResponse.json({ received: true, orderId: order.id });
+}
+
+// ❗ Handle payment_intent.payment_failed
+async function handlePaymentFailed(paymentIntent: Stripe.PaymentIntent, eventId: string) {
+  console.log(`[WEBHOOK] payment_intent.payment_failed: ${paymentIntent.id}`);
+
+  const order = await prisma.order.findFirst({
+    where: { stripePaymentIntentId: paymentIntent.id }
+  });
+
+  if (!order) {
+    console.error(`[WEBHOOK] Order not found for payment_intent: ${paymentIntent.id}`);
+    return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+  }
+
+  // Update Order + Transaction to FAILED
+  await prisma.$transaction([
+    prisma.order.update({
+      where: { id: order.id },
+      data: { status: 'CANCELLED' }
+    }),
+    prisma.transaction.update({
+      where: { orderId: order.id },
+      data: { status: 'FAILED' }
+    })
+  ]);
+
+  console.log(`[WEBHOOK] Order ${order.id} payment failed`);
+
+  return NextResponse.json({ received: true, orderId: order.id });
 }

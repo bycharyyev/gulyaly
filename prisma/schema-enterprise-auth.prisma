@@ -1,0 +1,448 @@
+// ============================================================
+// ENTERPRISE-GRADE AUTHENTICATION SCHEMA
+// STRICT SEPARATION: USER / SELLER / ADMIN
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// 1️⃣ USER (Customer) - OTP Authentication ONLY
+// ============================================================
+// RULES:
+// - NO password field
+// - Authentication via OTP (email or phone)
+// - role is ALWAYS "USER" (enforced by DB default)
+// - CANNOT be upgraded to SELLER or ADMIN
+// ============================================================
+
+model User {
+  id              String   @id @default(cuid())
+  email           String?  @unique
+  phone           String?  @unique
+  
+  // ❌ NO password field for USER
+  // Authentication via OTP only
+  
+  // OTP Fields
+  otp             String?
+  otpExpiresAt    DateTime?
+  otpType         String?  // "EMAIL" or "PHONE"
+  
+  // Verification Status
+  emailVerified   Boolean  @default(false)
+  phoneVerified   Boolean  @default(false)
+  
+  // Profile
+  name            String?
+  avatar          String?
+  
+  // STRICT: User role is immutable
+  role            String   @default("USER") // ALWAYS "USER"
+  
+  // Status
+  isActive        Boolean  @default(true)
+  banned          Boolean  @default(false)
+  bannedReason    String?
+  bannedAt        DateTime?
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastLoginAt     DateTime?
+  
+  // Relations
+  orders          Order[]
+  addresses       Address[]
+  reviews         Review[]
+  supportMessages SupportMessage[]
+  
+  // Indexes
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+  @@index([createdAt])
+  @@map("users")
+}
+
+// ============================================================
+// 2️⃣ SELLER (Merchant) - Email + Password Authentication
+// ============================================================
+// RULES:
+// - MUST have password (bcrypt hashed, min 10 chars)
+// - Authentication via email + password ONLY
+// - CANNOT use OTP
+// - Has sellerStatus: PENDING | APPROVED | REJECTED
+// - CANNOT access dashboard unless APPROVED
+// ============================================================
+
+model Seller {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  
+  // ✅ REQUIRED: Password for SELLER (bcrypt, min 10 chars)
+  passwordHash    String
+  
+  // Profile
+  name            String
+  avatar          String?
+  phone           String?
+  
+  // STRICT: Seller role is immutable
+  role            String   @default("SELLER") // ALWAYS "SELLER"
+  
+  // Seller Status (CRITICAL for access control)
+  sellerStatus    String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  
+  // Business Info
+  businessName    String?
+  businessType    String?  // "individual" | "company"
+  taxId           String?
+  
+  // Stripe Connect
+  stripeAccountId String?
+  
+  // Status
+  isActive        Boolean  @default(true)
+  banned          Boolean  @default(false)
+  bannedReason    String?
+  bannedAt        DateTime?
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastLoginAt     DateTime?
+  
+  // Relations
+  stores          Store[]
+  transactions    Transaction[] @relation("SellerTransactions")
+  
+  // Indexes
+  @@index([email])
+  @@index([role])
+  @@index([sellerStatus])
+  @@index([createdAt])
+  @@map("sellers")
+}
+
+// ============================================================
+// 3️⃣ ADMIN - Email + Password Authentication ONLY
+// ============================================================
+// RULES:
+// - MUST have password (bcrypt hashed)
+// - Authentication via email + password ONLY
+// - NO OTP allowed
+// - Stored in database (not env variables)
+// - Full system access
+// ============================================================
+
+model Admin {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  
+  // ✅ REQUIRED: Password for ADMIN (bcrypt)
+  passwordHash    String
+  
+  // Profile
+  name            String
+  avatar          String?
+  
+  // STRICT: Admin role is immutable
+  role            String   @default("ADMIN") // ALWAYS "ADMIN"
+  
+  // Permissions (granular access control)
+  permissions     String   @default("ALL") // JSON array of permissions
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastLoginAt     DateTime?
+  
+  // Indexes
+  @@index([email])
+  @@index([role])
+  @@index([createdAt])
+  @@map("admins")
+}
+
+// ============================================================
+// AUTH ATTEMPT LOGGING (Security)
+// ============================================================
+// Tracks all authentication attempts for audit and brute force detection
+// ============================================================
+
+model AuthAttempt {
+  id              String   @id @default(cuid())
+  
+  // Who attempted
+  email           String?
+  phone           String?
+  ipAddress       String?
+  userAgent       String?
+  
+  // What type
+  authType        String   // "USER_OTP" | "SELLER_PASSWORD" | "ADMIN_PASSWORD"
+  
+  // Result
+  success         Boolean
+  failureReason   String?
+  
+  // Timestamp
+  createdAt       DateTime @default(now())
+  
+  // Indexes for rate limiting queries
+  @@index([email])
+  @@index([phone])
+  @@index([ipAddress])
+  @@index([createdAt])
+  @@index([authType, createdAt])
+  @@map("auth_attempts")
+}
+
+// ============================================================
+// EXISTING MODELS (Updated for new auth structure)
+// ============================================================
+
+model Store {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  logo        String?
+  banner      String?
+  isActive    Boolean   @default(true)
+  commission  String    @default("0.15")
+  
+  // STRICT: Only SELLER can own store
+  ownerId     String
+  owner       Seller    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  products    Product[]
+  reviews     Review[]
+  
+  @@index([slug])
+  @@index([isActive])
+  @@index([ownerId])
+  @@map("stores")
+}
+
+model Product {
+  id          String           @id @default(cuid())
+  storeId     String?
+  name        String
+  description String
+  image       String?
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  images      String?
+  
+  store       Store?           @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  orders      Order[]
+  variants    ProductVariant[]
+  reviews     Review[]
+  
+  @@index([storeId])
+  @@index([isActive])
+  @@map("products")
+}
+
+model ProductVariant {
+  id          String   @id @default(cuid())
+  productId   String
+  name        String
+  description String?
+  price       Int      // Price in kopecks
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orders      Order[]
+  
+  @@index([productId])
+  @@index([isActive])
+  @@map("product_variants")
+}
+
+model Order {
+  id                    String        @id @default(cuid())
+  
+  // STRICT: Order belongs to USER only
+  userId                String
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  productId             String
+  variantId             String
+  amount                Int           // Amount in kopecks
+  status                String        @default("PENDING")
+  
+  // Stripe
+  stripeSessionId       String?
+  stripePaymentIntentId String?
+  
+  // Tracking
+  paidAt                DateTime?
+  processingStartedAt   DateTime?
+  shippedAt             DateTime?
+  deliveredAt           DateTime?
+  completedAt           DateTime?
+  trackingNumber        String?
+  
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  
+  // Relations
+  product               Product       @relation(fields: [productId], references: [id])
+  variant               ProductVariant @relation(fields: [variantId], references: [id])
+  transaction           Transaction?
+  review                Review?
+  dispute               Dispute?
+  
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model Transaction {
+  id                    String   @id @default(cuid())
+  orderId               String   @unique
+  order                 Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  // Financial breakdown
+  totalAmount           Int      // Total in kopecks
+  platformFee           Int      // Platform commission
+  sellerAmount          Int      // Amount for seller
+  stripeFee             Int      // Stripe fee
+  
+  status                String   @default("PENDING") // PENDING | COMPLETED | REFUNDED
+  
+  // STRICT: Transaction belongs to SELLER
+  sellerId              String
+  seller                Seller   @relation("SellerTransactions", fields: [sellerId], references: [id], onDelete: Cascade)
+  
+  stripePaymentIntentId String?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@index([sellerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("transactions")
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  
+  // STRICT: Review belongs to USER
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  orderId     String   @unique
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  rating      Int      // 1-5 stars
+  comment     String?
+  isVerified  Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([productId])
+  @@index([storeId])
+  @@index([rating])
+  @@map("reviews")
+}
+
+model Dispute {
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  reason      String
+  description String
+  status      String   @default("OPEN") // OPEN | IN_REVIEW | RESOLVED
+  
+  createdBy   String   // "USER" or "SELLER"
+  resolvedBy  String?  // Admin ID
+  resolvedAt  DateTime?
+  resolution  String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([orderId])
+  @@index([status])
+  @@map("disputes")
+}
+
+model Address {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  street      String
+  city        String
+  postalCode  String
+  country     String   @default("RU")
+  isDefault   Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+  @@map("addresses")
+}
+
+model SupportMessage {
+  id          String   @id @default(cuid())
+  
+  // Can be from USER or SELLER
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  content     String
+  isFromAdmin Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([createdAt])
+  @@map("support_messages")
+}
+
+model WebhookEvent {
+  id              String   @id @default(cuid())
+  stripeEventId   String   @unique
+  type            String
+  payload         String?
+  processedAt     DateTime @default(now())
+  status          String   @default("PROCESSED")
+  
+  @@index([stripeEventId])
+  @@index([type])
+  @@index([processedAt])
+  @@map("webhook_events")
+}

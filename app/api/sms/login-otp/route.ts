@@ -39,12 +39,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ✅ Проверяем, первый ли это вход пользователя
+    const isFirstLogin = !user.phoneVerified;
+    
     if (user) {
       console.log('📋 [LOGIN-OTP] Данные пользователя:', {
         id: user.id,
         phone: user.phone,
         name: user.name,
         phoneVerified: user.phoneVerified,
+        isFirstLogin,
         otp: user.otp,
         otpExpiresAt: user.otpExpiresAt
       });
@@ -54,7 +58,7 @@ export async function POST(request: NextRequest) {
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
-        name: user.name || `user${user.id}`, // Если имени нет, создаем auto имя
+        name: user.name || `Пользователь ${user.phone?.slice(-4)}`, // Если имени нет, создаем auto имя
         otp: null,
         otpExpiresAt: null,
         phoneVerified: true, // Помечаем как верифицированный
@@ -65,6 +69,7 @@ export async function POST(request: NextRequest) {
       id: updatedUser.id,
       name: updatedUser.name,
       phoneVerified: updatedUser.phoneVerified,
+      isFirstLogin,
       otp: updatedUser.otp
     });
 
@@ -73,6 +78,7 @@ export async function POST(request: NextRequest) {
     console.log('🎯 [LOGIN-OTP] Возвращаем успешный ответ');
     return NextResponse.json({
       message: 'Вход успешен',
+      isFirstLogin, // ✅ Флаг для показа приветственной анимации
       user: {
         id: updatedUser.id,
         name: updatedUser.name,

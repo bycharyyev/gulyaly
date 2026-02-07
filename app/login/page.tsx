@@ -20,6 +20,7 @@ export default function UniversalLoginPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false); // ✅ Welcome animation
 
   // Если пользователь уже авторизован, перенаправляем на главную
   useEffect(() => {
@@ -29,6 +30,19 @@ export default function UniversalLoginPage() {
       router.refresh();
     }
   }, [status, session, router]);
+
+  // ✅ Автоматическое скрытие Welcome анимации
+  useEffect(() => {
+    if (showWelcome) {
+      const timer = setTimeout(() => {
+        setShowWelcome(false);
+        router.push('/');
+        router.refresh();
+      }, 3000); // 3 секунды
+      
+      return () => clearTimeout(timer);
+    }
+  }, [showWelcome, router]);
 
   const handlePhoneAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,6 +128,12 @@ export default function UniversalLoginPage() {
 
       if (loginResponse.ok) {
         console.log('✅ [CLIENT] OTP верифицирован, начинаю вход в NextAuth');
+        
+        // ✅ Показываем Welcome анимацию для новых пользователей
+        if (loginData.isFirstLogin) {
+          setShowWelcome(true);
+        }
+        
         console.log('🔍 [CLIENT] Данные для signIn:', {
           phone: phone,
           password: 'otp-login',
@@ -134,21 +154,15 @@ export default function UniversalLoginPage() {
           // Если это CredentialsSignin но пользователь найден, возможно это просто предупреждение
           if (result.error === 'CredentialsSignin' && loginData?.user) {
             console.log('⚠️ [CLIENT] CredentialsSignin но пользователь найден, пробуем продолжить');
-            setError('✅ Вход успешен! Перенаправление...');
-            setTimeout(() => {
-              router.push('/');
-              router.refresh();
-            }, 1500);
+            setError('✅ Вход успешен!');
+            // ✅ Welcome анимация уже показывается, не перенаправляем сразу
           } else {
             setError('Ошибка создания сессии: ' + result.error);
           }
         } else if (result?.ok) {
           console.log('✅ [CLIENT] Успешный вход в NextAuth');
-          setError('✅ Вход успешен! Перенаправление...');
-          setTimeout(() => {
-            router.push('/');
-            router.refresh();
-          }, 1500);
+          setError('✅ Вход успешен!');
+          // ✅ Welcome анимация уже показывается, не перенаправляем сразу
         } else {
           console.log('❌ [CLIENT] Неизвестная ошибка signIn');
           setError('Ошибка создания сессии: неизвестная ошибка');
@@ -192,6 +206,25 @@ export default function UniversalLoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8">
+      {/* ✅ Welcome Animation */}
+      {showWelcome && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 animate-gradient">
+          <div className="text-center animate-fade-in-up">
+            <div className="mb-8 animate-bounce-slow">
+              <div className="w-32 h-32 mx-auto rounded-full bg-white p-6 shadow-2xl">
+                <Image src="/logo.svg" alt="Welcome" width={128} height={128} className="w-full h-full" />
+              </div>
+            </div>
+            <h1 className="text-5xl font-bold text-white mb-4 animate-slide-in-left">
+              Добро пожаловать! 🎉
+            </h1>
+            <p className="text-2xl text-white/90 animate-slide-in-right">
+              Рады видеть вас на Gulyaly
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-md">
         <div className="rounded-2xl sm:rounded-3xl border-2 border-blue-200/50 bg-white/90 p-6 sm:p-8 shadow-2xl backdrop-blur-xl dark:border-blue-900/50 dark:bg-zinc-900/90">
           {/* Заголовок */}

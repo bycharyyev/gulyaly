@@ -4,15 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "prisma generate && next build",
+    "build": "prisma generate --schema=prisma/schema.prisma && next build",
     "start": "next start",
     "lint": "eslint",
-    "db:generate": "prisma generate",
-    "db:push": "prisma db push",
-    "db:migrate": "prisma migrate deploy",
+    "db:generate": "prisma generate --schema=prisma/schema.prisma",
+    "db:push": "prisma db push --schema=prisma/schema.prisma",
+    "db:migrate": "prisma migrate deploy --schema=prisma/schema.prisma",
     "db:seed": "tsx prisma/seed.ts",
     "seed": "tsx scripts/seed.ts",
-    "studio": "prisma studio",
+    "studio": "prisma studio --schema=prisma/schema.prisma",
     "studio:secure": "node scripts/secure-prisma-studio.js"
   },
   "dependencies": {
@@ -23,6 +23,7 @@
     "express": "^5.2.1",
     "express-basic-auth": "^1.2.1",
     "http-proxy-middleware": "^3.0.5",
+    "ioredis": "^5.9.2",
     "lucide-react": "^0.563.0",
     "next": "16.1.1",
     "next-auth": "^5.0.0-beta.30",

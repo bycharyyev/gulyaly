@@ -1,298 +1,158 @@
-# Gulyaly - Digital Products E-commerce Store
+YOU ARE A SENIOR MARKETPLACE ARCHITECT
+with real production experience at Wildberries / Ozon scale.
 
-A modern full-stack e-commerce application for selling digital products, built with Next.js 16, Prisma, and NextAuth.
+CONTEXT:
+This is a real marketplace with SELLER, ADMIN, USER.
+Backend exists but critical logic + UI bugs remain.
+You must FIX and COMPLETE the system.
 
-## Project Overview
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔥 ABSOLUTE RULES (DO NOT BREAK)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-**Gulyaly** is a digital products store that enables users to:
-- Browse products with multiple variants (different options/pricing)
-- Register and authenticate via phone (OTP SMS) or email
-- Place orders with Stripe payment integration
-- Manage their profile and order history
-- Contact support via real-time chat
+1. NO VISUAL BUGS
+   - ALL input / textarea / password fields MUST have visible text
+   - Text must be readable in light & dark mode
+   - NO white text on white background
 
-## Tech Stack
+2. BACKEND IS SOURCE OF TRUTH
+   - Seller cannot publish products without admin approval
+   - Home page shows ONLY approved products
+   - Ownership checks are mandatory
 
-- **Framework:** Next.js 16.1.1 (App Router)
-- **Database:** SQLite with Prisma ORM
-- **Authentication:** NextAuth v5 (Credentials + OTP via SMS)
-- **Payments:** Stripe Checkout
-- **Styling:** Tailwind CSS v4
-- **State Management:** Zustand
-- **Forms:** React Hook Form + Zod validation
-- **SMS Gateway:** Custom SMS integration ( ibnux.net )
+3. NO EMPTY PAGES
+   - Seller pages
+   - Admin pages
+   - Home page
 
-## Project Structure
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎨 UI FIXES (CRITICAL)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-```
-codeakgus/
-├── app/                    # Next.js App Router pages
-│   ├── admin/             # Admin dashboard routes
-│   │   ├── orders/        # Order management
-│   │   ├── support/       # Support chat admin panel
-│   │   ├── users/         # User management
-│   │   ├── status/        # System status
-│   │   └── page.tsx       # Product management
-│   ├── api/               # API routes
-│   │   ├── auth/          # Authentication endpoints
-│   │   ├── checkout/      # Stripe checkout
-│   │   ├── orders/        # Order management
-│   │   ├── products/      # Product CRUD
-│   │   ├── support/       # Support chat system
-│   │   └── webhooks/      # Stripe webhooks
-│   ├── login/             # Login pages
-│   ├── profile/           # User profile & orders
-│   └── support/           # Customer support
-├── components/            # React components
-│   ├── Header.tsx
-│   ├── Footer.tsx
-│   ├── ProductCard.tsx
-│   ├── SupportChat.tsx
-│   ├── AddressManager.tsx
-│   └── admin/             # Admin components
-├── lib/                   # Utilities & configurations
-│   ├── auth.ts            # NextAuth configuration
-│   ├── prisma.ts          # Prisma client
-│   ├── stripe.ts          # Stripe client
-│   ├── sms.ts             # SMS gateway
-│   └── security.ts        # Rate limiting, security
-├── prisma/
-│   ├── schema.prisma      # Database schema
-│   └── seed.ts            # Database seeding
-├── types/                 # TypeScript definitions
-└── scripts/               # Utility scripts
-```
+FIX ALL INPUT FIELDS:
 
----
+- seller login (email, password)
+- product create
+- product edit
+- store create/edit
+- admin forms
 
-## ✅ What's Implemented (Complete)
+MANDATORY STYLES:
+- input, textarea:
+  - text-black (light)
+  - text-white (dark)
+  - bg-white / bg-neutral-900
+  - placeholder-visible
+- DO NOT rely on inherited color
 
-### Core Features
+VERIFY VISUALLY that text is readable.
 
-| Feature | Status | Description |
-|---------|--------|-------------|
-| **User Authentication** | ✅ Done | NextAuth v5 with credentials and phone OTP |
-| **Phone OTP Verification** | ✅ Done | SMS-based 2FA with 6-digit codes |
-| **Product Catalog** | ✅ Done | Products with variants (options & pricing) |
-| **Product Management** | ✅ Done | Full CRUD for admins |
-| **Order System** | ✅ Done | Order creation, history, status tracking |
-| **Stripe Integration** | ✅ Done | Checkout sessions, webhook processing |
-| **User Profile** | ✅ Done | Name, phone, address management |
-| **Address Management** | ✅ Done | Multiple addresses per user |
-| **Support Chat** | ✅ Done | Real-time messaging with admin |
-| **Admin Dashboard** | ✅ Done | Products, users, support management |
-| **Dark Mode** | ✅ Done | Full theme support |
-| **Mobile Responsive** | ✅ Done | Mobile-first design |
-| **Rate Limiting** | ✅ Done | Security against brute force |
-| **Security Headers** | ✅ Done | XSS, CORS, clickjacking protection |
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📦 PRODUCT LIFECYCLE (MANDATORY)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-### Database Models
+CHANGE PRODUCT FLOW TO:
 
-- **User** - Authentication, profile, roles (USER/ADMIN)
-- **Product** - Product information with images
-- **ProductVariant** - Price variants (size, options, etc.)
-- **Order** - Order tracking with status
-- **SupportMessage** - Chat messages with attachments
-- **Address** - User delivery addresses
-- **FooterSettings** - Configurable footer content
-- **SMSSettings** - SMS gateway configuration
-- **SMSLog** - SMS sending logs
+1. SELLER creates product
+   → status = PENDING_APPROVAL
+   → NOT visible on home page
+   → NOT purchasable
 
-### API Endpoints
+2. ADMIN reviews product
+   → APPROVE → status = ACTIVE
+   → REJECT → status = REJECTED (with reason)
 
-| Endpoint | Method | Status |
-|----------|--------|--------|
-| `/api/auth/[...nextauth]` | GET/POST | ✅ Auth handlers |
-| `/api/auth/register` | POST | ✅ User registration |
-| `/api/auth/otp/send` | POST | ✅ Send OTP |
-| `/api/auth/otp/verify` | POST | ✅ Verify OTP |
-| `/api/products` | GET/POST | ✅ Product list/create |
-| `/api/products/[id]` | GET/PUT/DELETE | ✅ Product operations |
-| `/api/products/all` | GET | ✅ All products (admin) |
-| `/api/products/[id]/status` | PATCH | ✅ Toggle status |
-| `/api/orders` | GET/POST | ✅ Order management |
-| `/api/checkout` | POST | ✅ Stripe checkout |
-| `/api/webhooks/stripe` | POST | ✅ Payment webhook |
-| `/api/support` | GET/POST | ✅ Send messages |
-| `/api/support/reply` | POST | ✅ Admin replies |
-| `/api/support/user` | GET | ✅ User messages |
-| `/api/support/admin-status` | GET | ✅ Admin online status |
-| `/api/user/profile` | GET/PUT | ✅ Profile management |
-| `/api/addresses` | GET/POST/PUT/DELETE | ✅ Address CRUD |
-| `/api/footer` | GET | ✅ Footer settings |
-| `/api/sms/login-otp` | POST | ✅ Login via SMS |
-| `/api/sms-settings` | GET/POST | ✅ SMS config |
+3. ONLY ACTIVE products:
+   - appear on home page
+   - appear in search
+   - can be bought
 
-### Admin Features
+SELLER CANNOT SELF-ACTIVATE PRODUCTS.
 
-- Product CRUD (create, edit, delete, toggle status)
-- User management (view, edit, delete, promote/demote)
-- Support chat with all users
-- Real-time message polling
-- Order status management
-- Unread message counter
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🧠 BACKEND FIXES (REQUIRED)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
----
+1️⃣ FIX PRODUCT UPDATE ERROR
+- Ensure PATCH /api/seller/products/[id]:
+  - accepts partial updates
+  - validates seller ownership
+  - does NOT require fields that frontend doesn’t send
+  - returns clear error messages
 
-## 🔧 What's Missing / Needs Work
+2️⃣ FIX HOME PAGE
+- Home page MUST load products from database
+- Query ONLY:
+  - status = ACTIVE
+  - store not banned
+- NO mock data
+- NO hardcoded products
 
-### Critical (High Priority)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🛠️ ADMIN DASHBOARD (MANDATORY)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-| Issue | Description | Impact |
-|-------|-------------|--------|
-| **Hardcoded Password** | Admin login uses hardcoded password `password123` in `lib/auth.ts:43` | Security vulnerability |
-| **Missing Stripe Keys** | `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` not configured | Payments won't work |
-| **SQLite in Production** | Using SQLite database (designed for dev only) | Scalability/可靠性 issues |
-| **Missing SMS Gateway Config** | SMS gateway not fully configured | OTP won't work in production |
-| **No Email Verification** | Email registration exists but no verification flow | Limited trust |
+IMPLEMENT ADMIN PRODUCT MODERATION:
 
-### Important (Medium Priority)
+ROUTES:
+- /admin/products
+- /admin/products/[id]
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| **File Upload** | ⚠️ Partial | Upload endpoint exists, no proper file storage (uses base64 or external) |
-| **Order Fulfillment** | ❌ Missing | No way to deliver digital products after payment |
-| **Order Cancellation** | ❌ Missing | No user-facing cancel order functionality |
-| **Admin Order View** | ❌ Missing | No admin page to view/manage orders |
-| **Product Categories** | ❌ Missing | No product organization system |
-| **Search/Filter Products** | ❌ Missing | Basic listing only |
-| **Product Reviews** | ❌ Missing | No rating/review system |
-| **Wishlist** | ❌ Missing | No favorites feature |
-| **Password Reset** | ❌ Missing | No "forgot password" flow |
-| **Email Notifications** | ⚠️ Partial | Telegram notifications exist, email not implemented |
-| **Analytics Dashboard** | ❌ Missing | No sales/stats for admin |
-| **Audit Logs** | ⚠️ Partial | Security events logged, no admin UI |
-| **Two-Factor Auth** | ⚠️ Partial | OTP works, but no TOTP option |
+FEATURES:
+- List products with status = PENDING_APPROVAL
+- View full product info
+- Approve product
+- Reject product with reason
 
-### Minor (Low Priority)
+API:
+- GET  /api/admin/products?status=PENDING_APPROVAL
+- PATCH /api/admin/products/[id]/approve
+- PATCH /api/admin/products/[id]/reject
 
-| Feature | Description |
-|---------|-------------|
-| **SEO Optimization** | Missing meta tags, sitemap, OpenGraph |
-| **Loading States** | Some pages lack loading skeletons |
-| **Error Boundaries** | No React error boundaries |
-| **Internationalization** | Single language (Russian) only |
-| **Accessibility** | Partial WCAG compliance |
-| **Unit Tests** | No test coverage |
-| **API Documentation** | No Swagger/OpenAPI docs |
-| **Docker Support** | No Dockerfile for containerization |
+SECURITY:
+- ADMIN ONLY
+- 403 on unauthorized access
 
----
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏠 HOME PAGE REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-## Security Concerns
+Home page MUST:
+- Load products from DB
+- Show product cards
+- Include:
+  - image
+  - title
+  - price
+  - store name
 
-1. **Hardcoded Credentials**
-   - Admin password in source code
-   - No environment variable for admin credentials
+ONLY show ACTIVE products.
 
-2. **Missing Security Features**
-   - No CAPTCHA on auth forms
-   - Rate limiting is basic (in-memory only)
-   - No account lockout after failed attempts
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🧪 VALIDATION CHECKLIST (MUST PASS ALL)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-3. **File Upload Risks**
-   - Limited file type validation
-   - No virus scanning
-   - No size limit enforcement
+✅ Text visible in ALL inputs  
+✅ Seller can create product  
+✅ Product goes to PENDING_APPROVAL  
+✅ Product NOT visible on home page  
+✅ Admin approves product  
+✅ Product becomes ACTIVE  
+✅ Product appears on home page  
+✅ Seller CANNOT bypass moderation  
+✅ Product edit works without errors  
 
----
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📦 FINAL OUTPUT REQUIRED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-## Recommended Improvements
+You MUST confirm:
 
-### Phase 1: Critical Fixes
+1. UI text visibility fixed everywhere
+2. Product update error resolved
+3. Admin product moderation implemented
+4. Home page shows DB products
+5. Full flow works on localhost:3000
 
-1. Move admin credentials to environment variables
-2. Configure PostgreSQL for production
-3. Set up Stripe API keys in `.env`
-4. Implement proper file storage (S3, Cloudinary, etc.)
-
-### Phase 2: Core Features
-
-1. Add order delivery system (email with digital product)
-2. Build admin order management page
-3. Implement password reset via email
-4. Add product categories and search
-
-### Phase 3: Polish
-
-1. Add comprehensive tests
-2. Implement accessibility improvements
-3. Add analytics and reporting
-4. Set up CI/CD pipeline
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 20+
-- npm or pnpm
-
-### Installation
-
-```bash
-# Clone the repository
-cd codeakgus
-
-# Install dependencies
-npm install
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your configuration
-
-# Generate Prisma client
-npm run db:generate
-
-# Push schema to database
-npm run db:push
-
-# Seed initial data
-npm run db:seed
-
-# Start development server
-npm run dev
-```
-
-### Environment Variables
-
-```env
-# Database
-DATABASE_URL="file:./dev.db"
-
-# App
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
-
-# Auth
-NEXTAUTH_SECRET="your-secret-key"
-ADMIN_EMAIL="admin@example.com"
-ADMIN_PASSWORD="secure-password"
-
-# Stripe (optional)
-STRIPE_SECRET_KEY="sk_test_..."
-STRIPE_WEBHOOK_SECRET="whsec_..."
-
-# SMS Gateway (optional)
-SMS_GATEWAY_URL="https://sms.ibnux.net/"
-SMS_DEVICE_ID=""
-SMS_SECRET=""
-```
-
----
-
-## Database Schema
-
-Key tables:
-- `users` - User accounts with role support
-- `products` - Product listings
-- `product_variants` - Product options/pricing
-- `orders` - Customer orders
-- `support_messages` - Support chat
-- `addresses` - Delivery addresses
-
----
-
-## License
-
-This project is for educational purposes.
+DO NOT STOP UNTIL ALL CHECKS PASS.
+THIS IS A REAL MONEY MARKETPLACE.

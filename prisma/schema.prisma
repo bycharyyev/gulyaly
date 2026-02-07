@@ -3,33 +3,35 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-// ==================== USER & AUTH ====================
-
 model User {
-  id              String           @id @default(cuid())
-  email           String?          @unique
-  password        String?          // Hashed password (for admin)
-  name            String?
-  avatar          String?
-  phone           String?          @unique
-  phoneVerified   Boolean          @default(false)
-  otp             String?
-  otpExpiresAt    DateTime?
-  role            Role             @default(USER)
-  isOnline        Boolean          @default(false)
-  lastSeenAt      DateTime         @default(now())
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  orders          Order[]
-  addresses       Address[]
-  sentMessages    SupportMessage[] @relation("SupportMessageSender")
-  supportMessages SupportMessage[]
+  id                String             @id @default(cuid())
+  email             String?            @unique
+  phone             String?            @unique
+  otp               String?
+  otpExpiresAt      DateTime?
+  otpType           String?
+  emailVerified     Boolean            @default(false)
+  phoneVerified     Boolean            @default(false)
+  name              String?
+  avatar            String?
+  role              String             @default("USER")
+  isActive          Boolean            @default(true)
+  banned            Boolean            @default(false)
+  bannedReason      String?
+  bannedAt          DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  lastLoginAt       DateTime?
+  addresses         Address[]
+  orders            Order[]
+  reviews           Review[]
+  sellerApplication SellerApplication?
+  supportMessages   SupportMessage[]
 
-  // Indexes for performance
   @@index([email])
   @@index([phone])
   @@index([role])
@@ -37,32 +39,95 @@ model User {
   @@map("users")
 }
 
-enum Role {
-  USER
-  ADMIN
+model Seller {
+  id              String        @id @default(cuid())
+  email           String        @unique
+  passwordHash    String
+  name            String
+  avatar          String?
+  phone           String?
+  role            String        @default("SELLER")
+  sellerStatus    String        @default("PENDING")
+  businessName    String?
+  businessType    String?
+  taxId           String?
+  stripeAccountId String?
+  isActive        Boolean       @default(true)
+  banned          Boolean       @default(false)
+  bannedReason    String?
+  bannedAt        DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  lastLoginAt     DateTime?
+  stores          Store[]
+  transactions    Transaction[] @relation("SellerTransactions")
+
+  @@index([email])
+  @@index([role])
+  @@index([sellerStatus])
+  @@index([createdAt])
+  @@map("sellers")
 }
 
-// ==================== STORE (Multi-Store Marketplace) ====================
+model Admin {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  avatar       String?
+  role         String    @default("ADMIN")
+  permissions  String    @default("ALL")
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLoginAt  DateTime?
+
+  @@index([email])
+  @@index([role])
+  @@index([createdAt])
+  @@map("admins")
+}
+
+model AuthAttempt {
+  id            String   @id @default(cuid())
+  email         String?
+  phone         String?
+  ipAddress     String?
+  userAgent     String?
+  authType      String
+  success       Boolean
+  failureReason String?
+  createdAt     DateTime @default(now())
+
+  @@index([email])
+  @@index([phone])
+  @@index([ipAddress])
+  @@index([createdAt])
+  @@index([authType, createdAt])
+  @@map("auth_attempts")
+}
 
 model Store {
   id          String    @id @default(cuid())
   name        String
-  slug        String    @unique // URL-friendly identifier (e.g., "adidas", "nike")
+  slug        String    @unique
   description String?
   logo        String?
   banner      String?
   isActive    Boolean   @default(true)
+  commission  String    @default("0.15")
+  ownerId     String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   products    Product[]
+  reviews     Review[]
+  owner       Seller    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-  // Indexes
   @@index([slug])
   @@index([isActive])
+  @@index([ownerId])
   @@map("stores")
 }
-
-// ==================== PRODUCTS ====================
 
 model Product {
   id          String           @id @default(cuid())
@@ -70,18 +135,20 @@ model Product {
   name        String
   description String
   image       String?
-  isActive    Boolean          @default(true)
+  isActive    Boolean          @default(false)
+  status      String           @default("PENDING_APPROVAL")
+  rejectionReason String?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
-  images      Json?
-  store       Store?           @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  images      String?
   orders      Order[]
   variants    ProductVariant[]
+  store       Store?           @relation(fields: [storeId], references: [id])
+  reviews     Review[]
 
-  // Indexes
   @@index([storeId])
   @@index([isActive])
-  @@index([createdAt])
+  @@index([status])
   @@map("products")
 }
 
@@ -89,179 +156,175 @@ model ProductVariant {
   id          String   @id @default(cuid())
   productId   String
   name        String
-  price       Int      // Stored in kopecks
   description String?
+  price       Int
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   orders      Order[]
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  // Indexes
   @@index([productId])
-  @@index([price])
+  @@index([isActive])
   @@map("product_variants")
 }
 
-// ==================== ORDERS ====================
-
 model Order {
-  id              String         @id @default(cuid())
-  userId          String
-  productId       String
-  variantId       String
-  amount          Int            // Stored in kopecks
-  status          OrderStatus    @default(PENDING)
-  stripeSessionId String?   @unique
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  variant         ProductVariant @relation(fields: [variantId], references: [id])
-  product         Product        @relation(fields: [productId], references: [id])
-  user            User           @relation(fields: [userId], references: [id])
+  id                    String         @id @default(cuid())
+  userId                String
+  productId             String
+  variantId             String
+  amount                Int
+  status                String         @default("PENDING")
+  stripeSessionId       String?
+  stripePaymentIntentId String?
+  paidAt                DateTime?
+  processingStartedAt   DateTime?
+  shippedAt             DateTime?
+  deliveredAt           DateTime?
+  completedAt           DateTime?
+  trackingNumber        String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  dispute               Dispute?
+  variant               ProductVariant @relation(fields: [variantId], references: [id])
+  product               Product        @relation(fields: [productId], references: [id])
+  user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  review                Review?
+  transaction           Transaction?
 
-  // Indexes
   @@index([userId])
   @@index([status])
   @@index([createdAt])
-  @@index([stripeSessionId])
   @@map("orders")
 }
 
-enum OrderStatus {
-  PENDING
-  PAID
-  PROCESSING
-  COMPLETED
-  CANCELLED
-}
+model Transaction {
+  id                    String   @id @default(cuid())
+  orderId               String   @unique
+  totalAmount           Int
+  platformFee           Int
+  sellerAmount          Int
+  stripeFee             Int
+  status                String   @default("PENDING")
+  sellerId              String
+  stripePaymentIntentId String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  seller                Seller   @relation("SellerTransactions", fields: [sellerId], references: [id], onDelete: Cascade)
+  order                 Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-// ==================== SUPPORT ====================
-
-model SupportMessage {
-  id             String        @id @default(cuid())
-  userId         String
-  senderId       String?
-  subject        String
-  message        String
-  status         SupportStatus @default(NEW)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  attachment     String?
-  attachmentType String?
-  reactions      Json?
-  sender         User?         @relation("SupportMessageSender", fields: [senderId], references: [id])
-  user           User          @relation(fields: [userId], references: [id])
-
-  // Indexes
-  @@index([userId])
+  @@index([sellerId])
   @@index([status])
   @@index([createdAt])
-  @@map("support_messages")
+  @@map("transactions")
 }
 
-enum SupportStatus {
-  NEW
-  READ
-  REPLIED
+model Review {
+  id         String   @id @default(cuid())
+  userId     String
+  orderId    String   @unique
+  productId  String
+  storeId    String
+  rating     Int
+  comment    String?
+  isVerified Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([productId])
+  @@index([storeId])
+  @@index([rating])
+  @@map("reviews")
 }
 
-// ==================== ADDRESSES ====================
+model Dispute {
+  id          String    @id @default(cuid())
+  orderId     String    @unique
+  reason      String
+  description String
+  status      String    @default("OPEN")
+  createdBy   String
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  resolution  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([status])
+  @@map("disputes")
+}
 
 model Address {
-  id          String   @id @default(cuid())
-  userId      String
-  title       String   // "Home", "Work", etc.
-  street      String
-  house       String
-  apartment   String?
-  entrance    String?
-  floor       String?
-  intercom    String?
-  comment     String?
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  userId     String
+  street     String
+  city       String
+  postalCode String
+  country    String   @default("RU")
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Indexes
   @@index([userId])
   @@map("addresses")
 }
 
-// ==================== SETTINGS ====================
-
-model FooterSettings {
+model SupportMessage {
   id          String   @id @default(cuid())
-  companyName String   @default("Gulyaly")
-  email       String   @default("info@gulyaly.com")
-  phone       String   @default("+7 (999) 123-45-67")
-  telegram    String?
-  whatsapp    String?
-  vk          String?
-  instagram   String?
-  description String   @default("Digital store. Simple. Fast. Beautiful.")
-  year        Int      @default(2026)
+  userId      String?
+  content     String
+  isFromAdmin Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("footer_settings")
-}
-
-model SMSSettings {
-  id         String   @id @default(cuid())
-  deviceID   String   @default("")
-  secret     String   @default("")
-  gatewayURL String   @default("https://sms.ibnux.net/")
-  simNumber  Int      @default(0)
-  enabled    Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@map("sms_settings")
-}
-
-model SMSLog {
-  id        String   @id @default(cuid())
-  to        String
-  text      String
-  status    String
-  response  String?
-  error     String?
-  createdAt DateTime @default(now())
-
-  // Indexes
-  @@index([to])
+  @@index([userId])
   @@index([createdAt])
-  @@map("sms_logs")
+  @@map("support_messages")
 }
 
-// ==================== RATE LIMITING ====================
+model WebhookEvent {
+  id            String   @id @default(cuid())
+  stripeEventId String   @unique
+  type          String
+  payload       String?
+  processedAt   DateTime @default(now())
+  status        String   @default("PROCESSED")
 
-model RateLimit {
-  id        String   @id @default(cuid())
-  identifier String  // IP, phone, email, etc.
-  action    String   // What action is being rate limited
-  count     Int      @default(0)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Indexes for fast lookups and cleanup
-  @@index([identifier, action])
-  @@index([expiresAt])
-  @@map("rate_limits")
+  @@index([stripeEventId])
+  @@index([type])
+  @@index([processedAt])
+  @@map("webhook_events")
 }
 
-// ==================== ACCOUNT LOCKOUT ====================
+model SellerApplication {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  status          String    @default("PENDING")
+  businessName    String
+  businessType    String
+  taxId           String?
+  phone           String
+  email           String
+  documents       String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-model AccountLockout {
-  id          String   @id @default(cuid())
-  identifier  String   // IP, email, phone
-  reason      String   // Reason for lockout
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
-
-  // Indexes
-  @@index([identifier])
-  @@index([expiresAt])
-  @@map("account_lockouts")
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("seller_applications")
 }
